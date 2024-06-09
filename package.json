@@ -21,7 +21,6 @@
     "typescript": "~5.4.5"
   },
   "dependencies": {
-    "@aws-cdk/aws-apprunner-alpha": "^2.144.0-alpha.0",
     "aws-cdk-lib": "2.144.0",
     "cdk-ecr-deployment": "^3.0.64",
     "constructs": "^10.0.0",
