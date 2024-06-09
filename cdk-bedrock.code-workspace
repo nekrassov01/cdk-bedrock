@@ -1,0 +1,15 @@
+{
+  "folders": [
+    {
+      "name": "root",
+      "path": "."
+    },
+    {
+      "name": "app",
+      "path": "./lib/image/app"
+    }
+  ],
+  "settings": {
+    "json.schemaDownload.enable": true
+  }
+}
