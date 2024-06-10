@@ -162,7 +162,7 @@ export class Ecs extends Construct {
       }),
       environment: {
         TARGET_REGION: stack.region,
-        MODEL_ID: "anthropic.claude-v2",
+        MODEL_ID: bedrock.BedrockFoundationModel.ANTHROPIC_CLAUDE_V2.modelId,
         KNOWLEDGE_BASE_ID: props.knowledgebase.knowledgeBaseId,
       },
       portMappings: [
