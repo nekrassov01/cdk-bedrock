@@ -40,7 +40,7 @@ class funcionConfig {
     return [
       this.getConfig(prefix, "get-instances-count", "インスタンス数の取得"),
       this.getConfig(prefix, "get-instances-without-owner", "Ownerタグのないインスタンスの取得"),
-      this.getConfig(prefix, "get-instances-with-open-permission", "0.0.0.0/0のが許可されたインスタンスの取得"),
+      this.getConfig(prefix, "get-instances-with-open-permission", "0.0.0.0/0が許可されたインスタンスの取得"),
     ];
   }
 }
