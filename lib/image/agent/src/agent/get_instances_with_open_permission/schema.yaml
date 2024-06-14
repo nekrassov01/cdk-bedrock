@@ -1,0 +1,46 @@
+openapi: 3.0.0
+info:
+  title: Lambda
+  version: 1.0.0
+paths:
+  /check-open-permission:
+    get:
+      summary: Check EC2 instances with open permission
+      description: リージョンごとにインバウンド通信で0.0.0.0/0が許可されているインスタンスがあるかを確認し、リージョン名、インスタンスID、インスタンス名、許可されているプロトコル、開始ポート、終了ポート、どのセキュリティグループからの許可かを示すセキュリティグループ名を収集してJSONで返します。
+      operationId: get_instances_with_open_permission
+      responses:
+        "200":
+          description: インバウンド通信が解放されたインスタンスの存在確認が成功しました。
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    region:
+                      type: string
+                      description: リージョン名
+                    instance_id:
+                      type: string
+                      description: インスタンスID
+                    instance_name:
+                      type: string
+                      description: インスタンス名
+                    permissions:
+                      type: array
+                      items:
+                        type: object
+                        properties:
+                          protocol:
+                            type: string
+                            description: プロトコル
+                          from_port:
+                            type: string
+                            description: 開始ポート
+                          to_port:
+                            type: string
+                            description: 終了ポート
+                          allow_from:
+                            type: string
+                            description: どのセキュリティグループからの許可かを示すセキュリティグループ名

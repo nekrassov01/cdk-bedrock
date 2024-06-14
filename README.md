@@ -1,7 +1,7 @@
 cdk-bedrock
 ===========
 
-Create a Fargate Service in CDK that makes requests to Knowledge Base for Amazon Bedrock.
+Create a Fargate Service in CDK that makes requests to Agents for Amazon Bedrock.
 
 ![diagram_pt1](docs/diagram.png)
 

@@ -2,6 +2,7 @@ import * as cdk from "aws-cdk-lib";
 import * as ecrdeploy from "cdk-ecr-deployment";
 import { Construct } from "constructs";
 import { bedrock } from "@cdklabs/generative-ai-cdk-constructs";
+import { FunctionConfig } from "./function";
 
 export interface EcsProps {
   serviceName: string;
@@ -10,7 +11,8 @@ export interface EcsProps {
   hostZoneName: string;
   repository: string;
   domainName: string;
-  knowledgebase: bedrock.KnowledgeBase;
+  functionConfig: FunctionConfig[];
+  agent: bedrock.Agent;
 }
 
 export class Ecs extends Construct {
@@ -56,19 +58,41 @@ export class Ecs extends Construct {
         },
       ],
     });
+    const endpointSecurityGroupName = `${props.serviceName}-endpoint-security-group`;
+    const endpointSecurityGroup = new cdk.aws_ec2.SecurityGroup(this, "EndpointSecurityGroup", {
+      securityGroupName: endpointSecurityGroupName,
+      description: endpointSecurityGroupName,
+      vpc: vpc,
+    });
+    cdk.Tags.of(endpointSecurityGroup).add("Name", endpointSecurityGroupName);
+
+    endpointSecurityGroup.addIngressRule(
+      cdk.aws_ec2.Peer.ipv4(vpc.vpcCidrBlock),
+      cdk.aws_ec2.Port.tcp(443),
+      "allow VPC internal access"
+    );
     vpc.addInterfaceEndpoint("ECREndpoint", {
+      securityGroups: [endpointSecurityGroup],
       service: cdk.aws_ec2.InterfaceVpcEndpointAwsService.ECR,
     });
     vpc.addInterfaceEndpoint("ECRDockerEndpoint", {
+      securityGroups: [endpointSecurityGroup],
       service: cdk.aws_ec2.InterfaceVpcEndpointAwsService.ECR_DOCKER,
     });
     vpc.addInterfaceEndpoint("CloudWatchEndpoint", {
+      securityGroups: [endpointSecurityGroup],
       service: cdk.aws_ec2.InterfaceVpcEndpointAwsService.CLOUDWATCH_LOGS,
     });
+    vpc.addInterfaceEndpoint("SecretsManagerEndpoint", {
+      securityGroups: [endpointSecurityGroup],
+      service: cdk.aws_ec2.InterfaceVpcEndpointAwsService.SECRETS_MANAGER,
+    });
     vpc.addInterfaceEndpoint("BedrockRuntimeEndpoint", {
+      securityGroups: [endpointSecurityGroup],
       service: cdk.aws_ec2.InterfaceVpcEndpointAwsService.BEDROCK_RUNTIME,
     });
     vpc.addInterfaceEndpoint("BedrockAgentRuntimeEndpoint", {
+      securityGroups: [endpointSecurityGroup],
       service: cdk.aws_ec2.InterfaceVpcEndpointAwsService.BEDROCK_AGENT_RUNTIME,
     });
     vpc.addGatewayEndpoint("S3Endpoint", {
@@ -90,7 +114,7 @@ export class Ecs extends Construct {
      * ECS
      */
 
-    const contanerName = `${props.serviceName}-knowledgebase-app`;
+    const contanerName = `${props.serviceName}-bedrock-app`;
     const containerPort = 8501;
     const tag = "latest";
 
@@ -115,7 +139,7 @@ export class Ecs extends Construct {
     });
 
     const executionRole = new cdk.aws_iam.Role(this, "ExecutionRole", {
-      roleName: `${props.serviceName}-task-execution-role`,
+      roleName: `${props.serviceName}-execution-role`,
       assumedBy: new cdk.aws_iam.CompositePrincipal(new cdk.aws_iam.ServicePrincipal("ecs-tasks.amazonaws.com")),
     });
 
@@ -135,10 +159,32 @@ export class Ecs extends Construct {
       },
     });
 
+    const userSecret = new cdk.aws_secretsmanager.Secret(this, "UserSecret", {
+      secretName: `${props.serviceName}-user-secret`,
+      description: `${props.serviceName}-user-secret`,
+      generateSecretString: {
+        generateStringKey: "password",
+        excludePunctuation: true,
+        passwordLength: 32,
+        secretStringTemplate: JSON.stringify({ username: "admin" }),
+      },
+    });
+
+    const cookieSecret = new cdk.aws_secretsmanager.Secret(this, "CookieSecret", {
+      secretName: `${props.serviceName}-cookie-secret`,
+      description: `${props.serviceName}-cookie-secret`,
+      generateSecretString: {
+        generateStringKey: "key",
+        excludePunctuation: true,
+        passwordLength: 256,
+        secretStringTemplate: JSON.stringify({ name: "id" }),
+      },
+    });
+
     const taskDefinition = new cdk.aws_ecs.FargateTaskDefinition(this, "TaskDefinition", {
       family: `${props.serviceName}-task-definition`,
-      cpu: 256,
-      memoryLimitMiB: 512,
+      cpu: 1024,
+      memoryLimitMiB: 2048,
       runtimePlatform: {
         operatingSystemFamily: cdk.aws_ecs.OperatingSystemFamily.LINUX,
         cpuArchitecture: cdk.aws_ecs.CpuArchitecture.ARM64,
@@ -162,8 +208,15 @@ export class Ecs extends Construct {
       }),
       environment: {
         TARGET_REGION: stack.region,
-        MODEL_ID: bedrock.BedrockFoundationModel.ANTHROPIC_CLAUDE_V2.modelId,
-        KNOWLEDGE_BASE_ID: props.knowledgebase.knowledgeBaseId,
+        AGENT_ID: props.agent.agentId,
+        AGENT_ALIAS_ID: props.agent.aliasId!,
+        ACTION_LABELS: JSON.stringify(props.functionConfig.map((item) => item.Description)),
+      },
+      secrets: {
+        USERNAME: cdk.aws_ecs.Secret.fromSecretsManager(userSecret, "username"),
+        PASSWORD: cdk.aws_ecs.Secret.fromSecretsManager(userSecret, "password"),
+        COOKIE_NAME: cdk.aws_ecs.Secret.fromSecretsManager(cookieSecret, "name"),
+        COOKIE_KEY: cdk.aws_ecs.Secret.fromSecretsManager(cookieSecret, "key"),
       },
       portMappings: [
         {

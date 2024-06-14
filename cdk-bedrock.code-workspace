@@ -7,6 +7,10 @@
     {
       "name": "app",
       "path": "./lib/image/app"
+    },
+    {
+      "name": "agent",
+      "path": "./lib/image/agent"
     }
   ],
   "settings": {

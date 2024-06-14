@@ -1,54 +1,117 @@
+import json
 import os
+import uuid
 
+import boto3
 import streamlit as st
-from langchain.prompts import PromptTemplate
-from langchain_aws.llms import BedrockLLM
-from langchain_aws.retrievers import AmazonKnowledgeBasesRetriever
-from langchain_core.runnables import RunnablePassthrough
-
-template = """
-###ドキュメント
-{context}
-###
-
-###質問
-{question}
-###
-
-Human: あなたは優秀なネットワークエンジニアです。ドキュメントセクションの内容を参照し、質問セクションに対して1000文字程度の日本語で回答してください。
-もし質問セクションの内容がドキュメントにない場合は「ドキュメントに記載がありません」と回答してください。
-またドキュメントにはコマンドリファレンスを含むため、質問に沿ったコマンドをコードブロックで回答してください。
-
-Assistant:
-"""
+import streamlit_authenticator as sa
 
 
-retriever = AmazonKnowledgeBasesRetriever(
-    knowledge_base_id=os.environ["KNOWLEDGE_BASE_ID"],
-    retrieval_config={
-        "vectorSearchConfiguration": {"numberOfResults": 4},
-    },
-    region_name=os.environ["TARGET_REGION"],
-)
+def main():
+    if "session_id" not in st.session_state:
+        st.session_state.session_id = str(uuid.uuid4())
 
-prompt = PromptTemplate(
-    input_variables=["context", "question"],
-    template=template,
-)
+    if "messages" not in st.session_state:
+        st.session_state.messages = []
 
-model = BedrockLLM(
-    model_id=os.environ["MODEL_ID"],
-    model_kwargs={"max_tokens_to_sample": 1000},
-    verbose=True,
-    region_name=os.environ["TARGET_REGION"],
-)
+    if "selected_preset" not in st.session_state:
+        st.session_state.selected_preset = ""
 
-chain = {"context": retriever, "question": RunnablePassthrough()} | prompt | model
+    if "use_preset" not in st.session_state:
+        st.session_state.use_preset = False
 
-st.title("TEST")
-input_text = st.text_input("Input")
-submit = st.button("Submit")
+    auth = sa.Authenticate(
+        credentials={
+            "usernames": {
+                "admin": {
+                    "name": os.environ["USERNAME"],
+                    "password": os.environ["PASSWORD"],
+                }
+            }
+        },
+        cookie_name=os.environ["COOKIE_NAME"],
+        cookie_key=os.environ["COOKIE_KEY"],
+        cookie_expiry_days=1,
+    )
 
-if submit:
-    result = chain.invoke(input_text)
-    st.write(result)
+    auth.login()
+    if st.session_state["authentication_status"] is True:
+        st.title("AWSのことなんでもこたえるマン")
+        set_sidebar(auth)
+        set_messages()
+        if prompt := get_user_prompt():
+            handle_prompt(prompt)
+    elif st.session_state["authentication_status"] is False:
+        st.error("Error: Logion failed.")
+
+
+def set_sidebar(auth):
+    actions = json.loads(os.environ["ACTION_LABELS"])
+    with st.sidebar:
+        st.session_state.selected_preset = st.selectbox("リソース調査", actions)
+        if st.button("依頼"):
+            st.session_state.use_preset = True
+        st.divider()
+        auth.logout("Logout", "sidebar")
+
+
+def set_messages():
+    for message in st.session_state.messages:
+        with st.chat_message(message["role"]):
+            st.write(message["content"])
+
+
+def get_user_prompt():
+    prompt = ""
+    if st.session_state.use_preset:
+        prompt = st.session_state.selected_preset
+    if user_input := st.chat_input("なんでもきいてください"):
+        prompt = user_input
+    return prompt
+
+
+def handle_prompt(prompt):
+    with st.chat_message("Human"):
+        st.markdown(prompt)
+    st.session_state.messages.append({"role": "Human", "content": prompt})
+
+    with st.chat_message("Assistant"):
+        with st.spinner("回答を準備中..."):
+            response = invoke_agent(prompt)
+            result = ""
+            if stream := response.get("completion"):
+                for event in stream:
+                    if chunk := event.get("chunk"):
+                        if bytes := chunk.get("bytes"):
+                            result += bytes.decode("utf-8")
+                st.markdown(result)
+                st.session_state.messages.append(
+                    {"role": "Assistant", "content": result}
+                )
+
+
+def invoke_agent(prompt):
+    try:
+        client = boto3.client(
+            service_name="bedrock-agent-runtime",
+            region_name=os.environ["TARGET_REGION"],
+        )
+
+        response = client.invoke_agent(
+            inputText=prompt,
+            agentId=os.environ["AGENT_ID"],
+            agentAliasId=os.environ["AGENT_ALIAS_ID"],
+            sessionId=st.session_state.session_id,
+            enableTrace=False,
+            endSession=False,
+        )
+
+    except Exception as e:
+        print("Error: {}".format(e))
+        raise
+
+    return response
+
+
+if __name__ == "__main__":
+    main()
