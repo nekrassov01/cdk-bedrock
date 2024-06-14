@@ -12,15 +12,15 @@ export interface FunctionConfig {
 }
 
 class funcionConfig {
-  getConfig = (prefix: string, name: string, description: string) => {
-    const kebabToPascalCase = (name: string) => {
+  getConfig = (prefix: string, name: string, description: string): FunctionConfig => {
+    const kebabToPascalCase = (name: string): string => {
       return name
         .split("-")
         .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
         .join("");
     };
 
-    const kebabToSnakeCase = (name: string) => {
+    const kebabToSnakeCase = (name: string): string => {
       return name.split("-").join("_");
     };
 
