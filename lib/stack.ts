@@ -1,8 +1,8 @@
 import * as cdk from "aws-cdk-lib";
 import { Construct } from "constructs";
-import { Bedrock } from "./construct/bedrock";
-import { Function } from "./construct/function";
-import { Ecs } from "./construct/ecs";
+import { Bedrock } from "./constructs/bedrock";
+import { Function } from "./constructs/function";
+import { Ecs } from "./constructs/ecs";
 
 export interface BedrockStackProps extends cdk.StackProps {
   serviceName: string;
