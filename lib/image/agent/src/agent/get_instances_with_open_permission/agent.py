@@ -58,7 +58,7 @@ def get_instances_with_open_permission(region_name: str):
                         "SecurityGroups"
                     ]:
                         for permission in security_group_detail["IpPermissions"]:
-                            for ip_range in permission.get("IpRanges", []):
+                            for ip_range in permission.get("IpRanges"):
                                 if ip_range.get("CidrIp") == "0.0.0.0/0":
                                     permission_detail = {
                                         "protocol": permission.get("IpProtocol"),
@@ -83,7 +83,7 @@ def get_instance_tag_value(key, instance) -> str:
     return next(
         (
             tag["Value"]
-            for tag in instance.get("Tags", [])
+            for tag in instance.get("Tags")
             if tag["Key"].lower() == key.lower()
         ),
         "",
