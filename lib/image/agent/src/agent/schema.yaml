@@ -3,6 +3,54 @@ info:
   title: Lambda
   version: 1.0.0
 paths:
+  /count:
+    get:
+      summary: Check EC2 instances count
+      description: リージョンごとにインスタンスの総数、実行中のインスタンスの数を集計してJSONで返します。
+      operationId: get_instances_count
+      responses:
+        "200":
+          description: インスタンス数の確認が成功しました。
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    region:
+                      type: string
+                      description: リージョン名
+                    instance_count:
+                      type: integer
+                      description: インスタンスの総数
+                    instance_running:
+                      type: integer
+                      description: 実行中のインスタンスの数
+  /check-without-owner:
+    get:
+      summary: Check EC2 instances without owner tag
+      description: リージョンごとにOwnerタグが付与されているか確認し、リージョン名、インスタンスID、インスタンス名を収集してJSONで返します。
+      operationId: get_instances_without_owner
+      responses:
+        "200":
+          description: Ownerタグが付与されていないインスタンスの存在確認が成功しました。
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    region:
+                      type: string
+                      description: リージョン名
+                    instance_id:
+                      type: string
+                      description: インスタンスID
+                    instance_name:
+                      type: string
+                      description: インスタンス名
   /check-open-permission:
     get:
       summary: Check EC2 instances with open permission

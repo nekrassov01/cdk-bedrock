@@ -2,7 +2,6 @@ import * as cdk from "aws-cdk-lib";
 import * as ecrdeploy from "cdk-ecr-deployment";
 import { Construct } from "constructs";
 import { bedrock } from "@cdklabs/generative-ai-cdk-constructs";
-import { FunctionConfig } from "./function";
 
 export interface EcsProps {
   serviceName: string;
@@ -11,7 +10,6 @@ export interface EcsProps {
   hostZoneName: string;
   repository: string;
   domainName: string;
-  functionConfig: FunctionConfig[];
   agent: bedrock.Agent;
 }
 
@@ -210,7 +208,11 @@ export class Ecs extends Construct {
         TARGET_REGION: stack.region,
         AGENT_ID: props.agent.agentId,
         AGENT_ALIAS_ID: props.agent.aliasId!,
-        ACTION_LABELS: JSON.stringify(props.functionConfig.map((item) => item.Description)),
+        ACTION_LABELS: JSON.stringify([
+          "インスタンス数の取得",
+          "Ownerタグのないインスタンスの取得",
+          "0.0.0.0/0が許可されたインスタンスの取得",
+        ]),
       },
       secrets: {
         USERNAME: cdk.aws_ecs.Secret.fromSecretsManager(userSecret, "username"),

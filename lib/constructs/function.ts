@@ -1,57 +1,13 @@
 import * as cdk from "aws-cdk-lib";
 import { Construct } from "constructs";
 
-export interface FunctionConfig {
-  BaseName: String;
-  FunctionId: string;
-  FunctionName: string;
-  Path: string;
-  SchemaFilePath: string;
-  Description: string;
-  Alias?: cdk.aws_lambda.Alias;
-}
-
-class funcionConfig {
-  getConfig = (prefix: string, name: string, description: string): FunctionConfig => {
-    const kebabToPascalCase = (name: string): string => {
-      return name
-        .split("-")
-        .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
-        .join("");
-    };
-
-    const kebabToSnakeCase = (name: string): string => {
-      return name.split("-").join("_");
-    };
-
-    const path = `lib/image/agent/src/agent/${kebabToSnakeCase(name)}`;
-
-    return {
-      BaseName: name,
-      FunctionId: kebabToPascalCase(name),
-      FunctionName: `${prefix}-${name}`,
-      Path: path,
-      Description: description,
-      SchemaFilePath: `${path}/schema.yaml`,
-    };
-  };
-
-  public Config(prefix: string): FunctionConfig[] {
-    return [
-      this.getConfig(prefix, "get-instances-count", "インスタンス数の取得"),
-      this.getConfig(prefix, "get-instances-without-owner", "Ownerタグのないインスタンスの取得"),
-      this.getConfig(prefix, "get-instances-with-open-permission", "0.0.0.0/0が許可されたインスタンスの取得"),
-    ];
-  }
-}
-
 export interface FunctionProps {
   serviceName: string;
   httpProxy: string;
 }
 
 export class Function extends Construct {
-  readonly functionConfig: FunctionConfig[];
+  readonly alias: cdk.aws_lambda.Alias;
 
   constructor(scope: Construct, id: string, props: FunctionProps) {
     super(scope, id);
@@ -77,30 +33,25 @@ export class Function extends Construct {
       },
     });
 
-    const cfg = new funcionConfig();
-    this.functionConfig = [];
-    cfg.Config(props.serviceName).map((obj) => {
-      const fn = new cdk.aws_lambda.DockerImageFunction(this, `${obj.FunctionId}Function`, {
-        functionName: obj.FunctionName,
-        description: obj.FunctionName,
-        code: cdk.aws_lambda.DockerImageCode.fromImageAsset(obj.Path, {
-          buildArgs: {
-            HTTP_PROXY: props.httpProxy,
-          },
-        }),
-        architecture: cdk.aws_lambda.Architecture.ARM_64,
-        role: functionRole,
-        logRetention: cdk.aws_logs.RetentionDays.THREE_DAYS,
-        currentVersionOptions: {
-          removalPolicy: cdk.RemovalPolicy.RETAIN,
+    const fn = new cdk.aws_lambda.DockerImageFunction(this, "Function", {
+      functionName: `${props.serviceName}-agent-action`,
+      description: `${props.serviceName}-agent-action`,
+      code: cdk.aws_lambda.DockerImageCode.fromImageAsset("lib/image/agent/src/agent", {
+        buildArgs: {
+          HTTP_PROXY: props.httpProxy,
         },
-        timeout: cdk.Duration.minutes(5),
-      });
-      obj.Alias = new cdk.aws_lambda.Alias(this, `${obj.FunctionId}Alias`, {
-        aliasName: "live",
-        version: fn.currentVersion,
-      });
-      this.functionConfig.push(obj);
+      }),
+      architecture: cdk.aws_lambda.Architecture.ARM_64,
+      role: functionRole,
+      logRetention: cdk.aws_logs.RetentionDays.THREE_DAYS,
+      currentVersionOptions: {
+        removalPolicy: cdk.RemovalPolicy.RETAIN,
+      },
+      timeout: cdk.Duration.minutes(5),
+    });
+    this.alias = new cdk.aws_lambda.Alias(this, "Alias", {
+      aliasName: "live",
+      version: fn.currentVersion,
     });
   }
 }

@@ -16,14 +16,14 @@ export class BedrockStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props: BedrockStackProps) {
     super(scope, id, props);
 
-    const fns = new Function(this, "Function", {
+    const fn = new Function(this, "Function", {
       serviceName: props.serviceName,
       httpProxy: props.httpProxy,
     });
 
     const bedrock = new Bedrock(this, "Bedrock", {
       serviceName: props.serviceName,
-      functionConfig: fns.functionConfig,
+      alias: fn.alias,
     });
 
     new Ecs(this, "ECS", {
@@ -33,7 +33,6 @@ export class BedrockStack extends cdk.Stack {
       hostZoneName: props.hostZoneName,
       repository: props.repository,
       domainName: `${props.serviceName}.${props.hostZoneName}`,
-      functionConfig: fns.functionConfig,
       agent: bedrock.agent,
     });
   }

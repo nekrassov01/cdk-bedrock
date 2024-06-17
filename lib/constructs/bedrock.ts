@@ -1,11 +1,10 @@
 import * as cdk from "aws-cdk-lib";
 import { Construct } from "constructs";
 import { bedrock } from "@cdklabs/generative-ai-cdk-constructs";
-import { FunctionConfig } from "./function";
 
 export interface BedrockProps {
   serviceName: string;
-  functionConfig: FunctionConfig[];
+  alias: cdk.aws_lambda.Alias;
 }
 
 export class Bedrock extends Construct {
@@ -20,13 +19,13 @@ export class Bedrock extends Construct {
 ただし、コードやデータ構造については日本語ではなくそのまま回答してください。
 
 タスク1:
-もし、例えば「インスタンスの数を教えてください」というように、インスタンスの数について聞かれたら、${props.functionConfig[0].FunctionName}というLambda関数を実行してください。
+もし、例えば「インスタンスの数を教えてください」というように、インスタンスの数について聞かれたら、\"/count\"というapiPathに紐づく機能を呼び出してください。
 
 タスク2:
-もし、例えば「Ownerタグの付与されていないインスタンスの情報を教えてください」というように、Ownerタグが付与されていないインスタンスの有無について聞かれたら、${props.functionConfig[1].FunctionName}というLambda関数を実行してください。
+もし、例えば「Ownerタグの付与されていないインスタンスの情報を教えてください」というように、Ownerタグが付与されていないインスタンスの有無について聞かれたら、\"/check-without-owner\"というapiPathに紐づく機能を呼び出してください。
 
 タスク3:
-もし、例えば「インバウンド通信で0.0.0.0/0が許可されているインスタンスの情報を教えてください」というように、インバウンド通信が解放されたインスタンスの有無について聞かれたら、${props.functionConfig[2].FunctionName}というLambda関数を実行してください。
+もし、例えば「インバウンド通信で0.0.0.0/0が許可されているインスタンスの情報を教えてください」というように、インバウンド通信が解放されたインスタンスの有無について聞かれたら、\"/check-open-permission\"というapiPathを呼び出してください。
 
 タスク4:
 タスク1、タスク2、タスク3以外の場合は、Lambda関数を実行せずに一般的な質問への回答をしてください。わからない質問には「その質問には回答できません」と回答してください
@@ -66,24 +65,22 @@ export class Bedrock extends Construct {
       idleSessionTTL: cdk.Duration.minutes(15),
     });
 
-    props.functionConfig.map((obj) => {
-      const actionGroup = new bedrock.AgentActionGroup(this, `${obj.FunctionId}ActionGroup`, {
-        actionGroupName: `${obj.FunctionName}-actiongroup`,
-        description: `${obj.FunctionName}-actiongroup`,
-        actionGroupExecutor: {
-          lambda: obj.Alias,
-        },
-        actionGroupState: "ENABLED",
-        apiSchema: bedrock.ApiSchema.fromAsset(obj.SchemaFilePath),
-        skipResourceInUseCheckOnDelete: false,
-      });
-      this.agent.addActionGroup(actionGroup);
+    const actionGroup = new bedrock.AgentActionGroup(this, "ActionGroup", {
+      actionGroupName: `${props.serviceName}-actiongroup`,
+      description: `${props.serviceName}-actiongroup`,
+      actionGroupExecutor: {
+        lambda: props.alias,
+      },
+      actionGroupState: "ENABLED",
+      apiSchema: bedrock.ApiSchema.fromAsset("lib/image/agent/src/agent/schema.yaml"),
+      skipResourceInUseCheckOnDelete: false,
+    });
+    this.agent.addActionGroup(actionGroup);
 
-      obj.Alias?.addPermission(`${obj.FunctionId}Permission`, {
-        principal: new cdk.aws_iam.ServicePrincipal("bedrock.amazonaws.com"),
-        action: "lambda:InvokeFunction",
-        sourceArn: this.agent.agentArn,
-      });
+    props.alias.addPermission("Permission", {
+      principal: new cdk.aws_iam.ServicePrincipal("bedrock.amazonaws.com"),
+      action: "lambda:InvokeFunction",
+      sourceArn: this.agent.agentArn,
     });
   }
 }

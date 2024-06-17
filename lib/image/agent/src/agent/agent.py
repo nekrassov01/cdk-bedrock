@@ -8,7 +8,7 @@ results = []
 
 
 def handler(event, context):
-    body = run_with_regions()
+    body = run_with_regions(event["apiPath"])
     response = {
         "messageVersion": "1.0",
         "response": {
@@ -22,10 +22,56 @@ def handler(event, context):
     return response
 
 
-def run_with_regions():
+def run_with_regions(apiPath):
     for region in regions:
-        get_instances_with_open_permission(region["RegionName"])
+        if apiPath == "/count":
+            get_instances_count(region["RegionName"])
+        elif apiPath == "/check-without-owner":
+            get_instances_without_owner(region["RegionName"])
+        elif apiPath == "/check-open-permission":
+            get_instances_with_open_permission(region["RegionName"])
+        else:
+            print('Error: apiPath "{}" not supported'.format(apiPath))
+            break
     return json.dumps(obj=results, ensure_ascii=False)
+
+
+def get_instances_count(region_name: str):
+    try:
+        client = boto3.client("ec2", region_name=region_name)
+        instances = client.describe_instances()
+        instance_count = 0
+        instance_running = 0
+        for reservation in instances["Reservations"]:
+            instance_count += len(reservation["Instances"])
+            for instance in reservation["Instances"]:
+                if instance["State"]["Name"] == "running":
+                    instance_running += 1
+        result = {
+            "region": region_name,
+            "instance_count": instance_count,
+            "instance_running": instance_running,
+        }
+        results.append(result)
+    except Exception as e:
+        print("Error: {}: {}".format(region_name, e))
+
+
+def get_instances_without_owner(region_name):
+    try:
+        client = boto3.client("ec2", region_name=region_name)
+        instances = client.describe_instances()
+        for reservation in instances["Reservations"]:
+            for instance in reservation["Instances"]:
+                if get_instance_tag_value("Owner", instance) == "":
+                    result = {
+                        "region": region_name,
+                        "instance_id": instance["InstanceId"],
+                        "instance_name": get_instance_tag_value("Name", instance),
+                    }
+                    results.append(result)
+    except Exception as e:
+        print("Error: {}: {}".format(region_name, e))
 
 
 def get_instances_with_open_permission(region_name: str):
