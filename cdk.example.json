@@ -68,6 +68,7 @@
     "hostZoneName": "example.com",
     "allowedIps": ["0.0.0.0/0"],
     "httpProxy": "http://my-proxy.com:port",
-    "repository": "user/reponame"
+    "repository": "user/reponame",
+    "hasUI": true
   }
 }

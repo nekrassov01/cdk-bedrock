@@ -16,6 +16,7 @@ new BedrockStack(app, "BedrockStack", {
   httpProxy: app.node.tryGetContext("httpProxy"),
   hostZoneName: app.node.tryGetContext("hostZoneName"),
   repository: app.node.tryGetContext("repository"),
+  hasUI: app.node.tryGetContext("hasUI"),
 });
 
 cdk.Tags.of(app).add("Owner", app.node.tryGetContext("owner"));

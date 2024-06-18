@@ -10,6 +10,7 @@ export interface BedrockStackProps extends cdk.StackProps {
   httpProxy: string;
   hostZoneName: string;
   repository: string;
+  hasUI: boolean;
 }
 
 export class BedrockStack extends cdk.Stack {
@@ -26,14 +27,16 @@ export class BedrockStack extends cdk.Stack {
       alias: fn.alias,
     });
 
-    new Ecs(this, "ECS", {
-      serviceName: props.serviceName,
-      allowedIps: props.allowedIps,
-      httpProxy: props.httpProxy,
-      hostZoneName: props.hostZoneName,
-      repository: props.repository,
-      domainName: `${props.serviceName}.${props.hostZoneName}`,
-      agent: bedrock.agent,
-    });
+    if (props.hasUI) {
+      new Ecs(this, "ECS", {
+        serviceName: props.serviceName,
+        allowedIps: props.allowedIps,
+        httpProxy: props.httpProxy,
+        hostZoneName: props.hostZoneName,
+        repository: props.repository,
+        domainName: `${props.serviceName}.${props.hostZoneName}`,
+        agent: bedrock.agent,
+      });
+    }
   }
 }
