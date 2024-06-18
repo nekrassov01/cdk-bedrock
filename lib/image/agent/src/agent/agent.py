@@ -22,7 +22,7 @@ def handler(event, context):
     return response
 
 
-def run_with_regions(apiPath):
+def run_with_regions(apiPath: str):
     for region in regions:
         if apiPath == "/count":
             get_instances_count(region["RegionName"])
@@ -57,7 +57,7 @@ def get_instances_count(region_name: str):
         print("Error: {}: {}".format(region_name, e))
 
 
-def get_instances_without_owner(region_name):
+def get_instances_without_owner(region_name: str):
     try:
         client = boto3.client("ec2", region_name=region_name)
         instances = client.describe_instances()
