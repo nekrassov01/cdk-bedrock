@@ -5,8 +5,8 @@ info:
 paths:
   /count:
     get:
-      summary: Check EC2 instances count
-      description: リージョンごとにインスタンスの総数、実行中のインスタンスの数を集計してJSONで返します。
+      summary: Check EC2 instances count in all regions
+      description: 全リージョンに存在するインスタンスの総数、実行中のインスタンスの数を集計してJSONで返します。
       operationId: get_instances_count
       responses:
         "200":
@@ -29,8 +29,8 @@ paths:
                       description: 実行中のインスタンスの数
   /check-without-owner:
     get:
-      summary: Check EC2 instances without owner tag
-      description: リージョンごとにOwnerタグが付与されているか確認し、リージョン名、インスタンスID、インスタンス名を収集してJSONで返します。
+      summary: Check EC2 instances without owner tag in all regions
+      description: 全リージョンに存在するインスタンスに対してOwnerタグが付与されているか確認し、リージョン名、インスタンスID、インスタンス名を収集してJSONで返します。
       operationId: get_instances_without_owner
       responses:
         "200":
@@ -53,9 +53,119 @@ paths:
                       description: インスタンス名
   /check-open-permission:
     get:
-      summary: Check EC2 instances with open permission
-      description: リージョンごとにインバウンド通信で0.0.0.0/0が許可されているインスタンスがあるかを確認し、リージョン名、インスタンスID、インスタンス名、許可されているプロトコル、開始ポート、終了ポート、どのセキュリティグループからの許可かを示すセキュリティグループ名を収集してJSONで返します。
+      summary: Check EC2 instances with open permission in all regions
+      description: 全リージョンに存在するインスタンスに対してインバウンド通信で0.0.0.0/0が許可されているかを確認し、リージョン名、インスタンスID、インスタンス名、許可されているプロトコル、開始ポート、終了ポート、どのセキュリティグループからの許可かを示すセキュリティグループ名を収集してJSONで返します。
       operationId: get_instances_with_open_permission
+      responses:
+        "200":
+          description: インバウンド通信が解放されたインスタンスの存在確認が成功しました。
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    region:
+                      type: string
+                      description: リージョン名
+                    instance_id:
+                      type: string
+                      description: インスタンスID
+                    instance_name:
+                      type: string
+                      description: インスタンス名
+                    permissions:
+                      type: array
+                      items:
+                        type: object
+                        properties:
+                          protocol:
+                            type: string
+                            description: プロトコル
+                          from_port:
+                            type: string
+                            description: 開始ポート
+                          to_port:
+                            type: string
+                            description: 終了ポート
+                          allow_from:
+                            type: string
+                            description: どのセキュリティグループからの許可かを示すセキュリティグループ名
+  /count/{region}:
+    get:
+      summary: Check EC2 instances count in specified region
+      description: パラメーターで渡されたリージョンに存在するインスタンスの総数、実行中のインスタンスの数を集計してJSONで返します。
+      operationId: get_instances_count_by_region
+      parameters:
+        - name: region
+          in: path
+          description: リージョン名
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: インスタンス数の確認が成功しました。
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    region:
+                      type: string
+                      description: リージョン名
+                    instance_count:
+                      type: integer
+                      description: インスタンスの総数
+                    instance_running:
+                      type: integer
+                      description: 実行中のインスタンスの数
+  /check-without-owner/{region}:
+    get:
+      summary: Check EC2 instances without owner tag in specified region
+      description: パラメーターで渡されたリージョンに存在するインスタンスに対してOwnerタグが付与されているか確認し、リージョン名、インスタンスID、インスタンス名を収集してJSONで返します。
+      operationId: get_instances_without_owner_by_region
+      parameters:
+        - name: region
+          in: path
+          description: リージョン名
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Ownerタグが付与されていないインスタンスの存在確認が成功しました。
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    region:
+                      type: string
+                      description: リージョン名
+                    instance_id:
+                      type: string
+                      description: インスタンスID
+                    instance_name:
+                      type: string
+                      description: インスタンス名
+  /check-open-permission/{region}:
+    get:
+      summary: Check EC2 instances with open permission in specified region
+      description: パラメーターで渡されたリージョンに存在するインスタンスに対してインバウンド通信で0.0.0.0/0が許可されているかを確認し、リージョン名、インスタンスID、インスタンス名、許可されているプロトコル、開始ポート、終了ポート、どのセキュリティグループからの許可かを示すセキュリティグループ名を収集してJSONで返します。
+      operationId: get_instances_with_open_permission_by_region
+      parameters:
+        - name: region
+          in: path
+          description: リージョン名
+          required: true
+          schema:
+            type: string
       responses:
         "200":
           description: インバウンド通信が解放されたインスタンスの存在確認が成功しました。

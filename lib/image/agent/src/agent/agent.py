@@ -3,12 +3,15 @@ import json
 import boto3
 
 client = boto3.client("ec2")
-regions = client.describe_regions()["Regions"]
 results = []
 
 
 def handler(event, context):
-    body = run_with_regions(event["apiPath"])
+    region = get_region(event)
+    if region != "":
+        body = run_with_region(event["apiPath"], region)
+    else:
+        body = run_with_all_regions(event["apiPath"])
     response = {
         "messageVersion": "1.0",
         "response": {
@@ -22,8 +25,20 @@ def handler(event, context):
     return response
 
 
-def run_with_regions(apiPath: str):
-    for region in regions:
+def run_with_region(apiPath, region):
+    if apiPath == "/count/{region}":
+        get_instances_count(region)
+    elif apiPath == "/check-without-owner/{region}":
+        get_instances_without_owner(region)
+    elif apiPath == "/check-open-permission/{region}":
+        get_instances_with_open_permission(region)
+    else:
+        print('Error: apiPath "{}" not supported'.format(apiPath))
+    return json.dumps(obj=results, ensure_ascii=False)
+
+
+def run_with_all_regions(apiPath):
+    for region in client.describe_regions()["Regions"]:
         if apiPath == "/count":
             get_instances_count(region["RegionName"])
         elif apiPath == "/check-without-owner":
@@ -134,3 +149,15 @@ def get_instance_tag_value(key, instance) -> str:
         ),
         "",
     )
+
+
+def get_region(event) -> str:
+    region = next(
+        (
+            parameter["value"]
+            for parameter in event.get("parameters", [])
+            if parameter["name"] == "region"
+        ),
+        "",
+    )
+    return region
