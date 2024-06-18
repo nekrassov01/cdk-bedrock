@@ -30,11 +30,11 @@ def run(event):
             region["RegionName"] for region in client.describe_regions()["Regions"]
         ]
     for region in regions:
-        if apiPath in ["/count", "/count/{regions}"]:
+        if apiPath == "/count/{regions}":
             get_instances_count(region)
-        elif apiPath in ["/check-without-owner", "/check-without-owner/{regions}"]:
+        elif apiPath == "/check-without-owner/{regions}":
             get_instances_without_owner(region)
-        elif apiPath in ["/check-open-permission", "/check-open-permission/{regions}"]:
+        elif apiPath == "/check-open-permission/{regions}":
             get_instances_with_open_permission(region)
         else:
             print('Error: apiPath "{}" not supported'.format(apiPath))
