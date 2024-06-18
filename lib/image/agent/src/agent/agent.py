@@ -7,11 +7,7 @@ results = []
 
 
 def handler(event, context):
-    region = get_region(event)
-    if region != "":
-        body = run_with_region(event["apiPath"], region)
-    else:
-        body = run_with_all_regions(event["apiPath"])
+    body = run(event)
     response = {
         "messageVersion": "1.0",
         "response": {
@@ -25,26 +21,21 @@ def handler(event, context):
     return response
 
 
-def run_with_region(apiPath, region):
-    if apiPath == "/count/{region}":
-        get_instances_count(region)
-    elif apiPath == "/check-without-owner/{region}":
-        get_instances_without_owner(region)
-    elif apiPath == "/check-open-permission/{region}":
-        get_instances_with_open_permission(region)
-    else:
-        print('Error: apiPath "{}" not supported'.format(apiPath))
-    return json.dumps(obj=results, ensure_ascii=False)
-
-
-def run_with_all_regions(apiPath):
-    for region in client.describe_regions()["Regions"]:
-        if apiPath == "/count":
-            get_instances_count(region["RegionName"])
-        elif apiPath == "/check-without-owner":
-            get_instances_without_owner(region["RegionName"])
-        elif apiPath == "/check-open-permission":
-            get_instances_with_open_permission(region["RegionName"])
+def run(event):
+    apiPath = event["apiPath"]
+    r = get_regions(event.get("parameters", []))
+    regions = r.split(",") if r else []
+    if not regions:
+        regions = [
+            region["RegionName"] for region in client.describe_regions()["Regions"]
+        ]
+    for region in regions:
+        if apiPath in ["/count", "/count/{regions}"]:
+            get_instances_count(region)
+        elif apiPath in ["/check-without-owner", "/check-without-owner/{regions}"]:
+            get_instances_without_owner(region)
+        elif apiPath in ["/check-open-permission", "/check-open-permission/{regions}"]:
+            get_instances_with_open_permission(region)
         else:
             print('Error: apiPath "{}" not supported'.format(apiPath))
             break
@@ -151,13 +142,12 @@ def get_instance_tag_value(key, instance) -> str:
     )
 
 
-def get_region(event) -> str:
-    region = next(
+def get_regions(parameters) -> str:
+    return next(
         (
             parameter["value"]
-            for parameter in event.get("parameters", [])
-            if parameter["name"] == "region"
+            for parameter in parameters
+            if parameter["name"] == "regions"
         ),
         "",
     )
-    return region
