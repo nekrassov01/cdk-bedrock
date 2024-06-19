@@ -4,7 +4,6 @@ import boto3
 
 client = boto3.client("ec2")
 regions = client.describe_regions()["Regions"]
-results = []
 
 
 def handler(event, context):
@@ -23,6 +22,8 @@ def handler(event, context):
 
 
 def run_with_regions():
+    global results
+    results = []
     for region in regions:
         get_instances_without_owner(region["RegionName"])
     return json.dumps(obj=results, ensure_ascii=False)
