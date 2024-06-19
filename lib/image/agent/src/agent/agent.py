@@ -3,7 +3,6 @@ import json
 import boto3
 
 client = boto3.client("ec2")
-results = []
 
 
 def handler(event, context):
@@ -22,6 +21,8 @@ def handler(event, context):
 
 
 def run(event):
+    global results
+    results = []
     apiPath = event["apiPath"]
     r = get_regions(event.get("parameters", []))
     regions = r.split(",") if r else []
