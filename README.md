@@ -19,7 +19,8 @@ First, define the context as follows:
     "serviceName": "my-service",
     "hostZoneName": "example.com",
     "allowedIps": ["0.0.0.0/0"],
-    "httpProxy": "http://my-proxy.com:port"
+    "httpProxy": "http://my-proxy.com:port",
+    "hasUI": false // If true, Streamlit is launched in ECS
   }
 }
 ```
