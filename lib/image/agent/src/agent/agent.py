@@ -6,6 +6,7 @@ client = boto3.client("ec2")
 
 
 def handler(event, context):
+    print("processing by python")
     body = run(event)
     response = {
         "messageVersion": "1.0",
@@ -40,7 +41,9 @@ def run(event):
         else:
             print('Error: apiPath "{}" not supported'.format(apiPath))
             break
-    return json.dumps(obj=results, ensure_ascii=False)
+    out = json.dumps(obj=results, ensure_ascii=False)
+    print(out)
+    return out
 
 
 def get_instances_count(region_name: str):

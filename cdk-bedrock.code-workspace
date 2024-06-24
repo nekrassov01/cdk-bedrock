@@ -11,6 +11,10 @@
     {
       "name": "agent",
       "path": "./lib/image/agent"
+    },
+    {
+      "name": "agent-go",
+      "path": "./lib/image/agent-go"
     }
   ],
   "settings": {

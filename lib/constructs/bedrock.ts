@@ -58,7 +58,7 @@ export class Bedrock extends Construct {
       name: `${props.serviceName}-agent`,
       aliasName: "v1",
       existingRole: agentRole,
-      foundationModel: bedrock.BedrockFoundationModel.ANTHROPIC_CLAUDE_HAIKU_V1_0,
+      foundationModel: bedrock.BedrockFoundationModel.ANTHROPIC_CLAUDE_SONNET_V1_0,
       instruction: instruction,
       shouldPrepareAgent: true,
       enableUserInput: true,
@@ -72,7 +72,7 @@ export class Bedrock extends Construct {
         lambda: props.alias,
       },
       actionGroupState: "ENABLED",
-      apiSchema: bedrock.ApiSchema.fromAsset("lib/image/agent/src/agent/schema.yaml"),
+      apiSchema: bedrock.ApiSchema.fromAsset("lib/schema/schema.yaml"),
       skipResourceInUseCheckOnDelete: false,
     });
     this.agent.addActionGroup(actionGroup);

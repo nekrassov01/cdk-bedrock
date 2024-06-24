@@ -36,9 +36,10 @@ export class Function extends Construct {
     const fn = new cdk.aws_lambda.DockerImageFunction(this, "Function", {
       functionName: `${props.serviceName}-agent-action`,
       description: `${props.serviceName}-agent-action`,
-      code: cdk.aws_lambda.DockerImageCode.fromImageAsset("lib/image/agent/src/agent", {
+      code: cdk.aws_lambda.DockerImageCode.fromImageAsset("lib/image/agent-go", {
         buildArgs: {
           HTTP_PROXY: props.httpProxy,
+          HTTPS_PROXY: props.httpProxy,
         },
       }),
       architecture: cdk.aws_lambda.Architecture.ARM_64,
