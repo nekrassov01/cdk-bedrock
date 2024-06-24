@@ -368,6 +368,7 @@ type EventResponse struct {
 	MessageVersion string   `json:"messageVersion"`
 	Response       Response `json:"response"`
 }
+
 type Response struct {
 	ActionGroup    string                    `json:"actionGroup"`
 	APIPath        string                    `json:"apiPath"`
