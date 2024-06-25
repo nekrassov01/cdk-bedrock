@@ -18,7 +18,7 @@ import (
 
 const defaultMapSize = 8
 
-var d = &Describer{}
+var d *Describer
 
 type Describer struct {
 	ctx     context.Context
