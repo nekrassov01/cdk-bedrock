@@ -328,7 +328,7 @@ func (d *Describer) getOpenSecurityGroups(region string) (map[string][]Permissio
 							IpProtocol: aws.ToString(p.IpProtocol),
 							FromPort:   aws.ToInt32(p.FromPort),
 							ToPort:     aws.ToInt32(p.ToPort),
-							AllowFrom:  aws.ToString(sg.GroupId),
+							AllowFrom:  aws.ToString(sg.GroupName),
 						})
 					}
 				}
