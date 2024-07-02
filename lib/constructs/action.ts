@@ -1,19 +1,19 @@
 import * as cdk from "aws-cdk-lib";
 import { Construct } from "constructs";
 
-export interface FunctionProps {
+export interface ActionProps {
   serviceName: string;
   httpProxy: string;
 }
 
-export class Function extends Construct {
+export class Action extends Construct {
   readonly alias: cdk.aws_lambda.Alias;
 
-  constructor(scope: Construct, id: string, props: FunctionProps) {
+  constructor(scope: Construct, id: string, props: ActionProps) {
     super(scope, id);
 
-    const functionRole = new cdk.aws_iam.Role(this, "Role", {
-      roleName: `${props.serviceName}-function-role`,
+    const role = new cdk.aws_iam.Role(this, "Role", {
+      roleName: `${props.serviceName}-action-role`,
       assumedBy: new cdk.aws_iam.ServicePrincipal("lambda.amazonaws.com"),
       inlinePolicies: {
         FunctionPolicy: new cdk.aws_iam.PolicyDocument({
@@ -34,8 +34,8 @@ export class Function extends Construct {
     });
 
     const fn = new cdk.aws_lambda.DockerImageFunction(this, "Function", {
-      functionName: `${props.serviceName}-agent-action`,
-      description: `${props.serviceName}-agent-action`,
+      functionName: `${props.serviceName}-action`,
+      description: `${props.serviceName}-action`,
       code: cdk.aws_lambda.DockerImageCode.fromImageAsset("lib/image/agent-go", {
         buildArgs: {
           HTTP_PROXY: props.httpProxy,
@@ -43,7 +43,7 @@ export class Function extends Construct {
         },
       }),
       architecture: cdk.aws_lambda.Architecture.ARM_64,
-      role: functionRole,
+      role: role,
       logRetention: cdk.aws_logs.RetentionDays.THREE_DAYS,
       currentVersionOptions: {
         removalPolicy: cdk.RemovalPolicy.RETAIN,

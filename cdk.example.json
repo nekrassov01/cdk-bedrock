@@ -69,6 +69,8 @@
     "allowedIps": ["0.0.0.0/0"],
     "httpProxy": "http://my-proxy.com:port",
     "repository": "user/reponame",
+    "slackOAuthToken": "foo",
+    "slackSigningSecret": "bar",
     "hasUI": true
   }
 }

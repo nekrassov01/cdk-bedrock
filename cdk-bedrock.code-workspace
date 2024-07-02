@@ -15,6 +15,10 @@
     {
       "name": "agent-go",
       "path": "./lib/image/agent-go"
+    },
+    {
+      "name": "slackbot",
+      "path": "./lib/image/slackbot"
     }
   ],
   "settings": {

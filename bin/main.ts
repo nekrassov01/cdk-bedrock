@@ -16,6 +16,8 @@ new BedrockStack(app, "BedrockStack", {
   httpProxy: app.node.tryGetContext("httpProxy"),
   hostZoneName: app.node.tryGetContext("hostZoneName"),
   repository: app.node.tryGetContext("repository"),
+  slackOAuthToken: app.node.tryGetContext("slackOAuthToken"),
+  slackSigningSecret: app.node.tryGetContext("slackSigningSecret"),
   hasUI: app.node.tryGetContext("hasUI"),
 });
 

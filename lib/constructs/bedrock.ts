@@ -15,7 +15,7 @@ export class Bedrock extends Construct {
 
     const stack = cdk.Stack.of(this);
 
-    const instruction = `あなたはAWSに精通したソリューションアーキテクトです。いくつかの関数を使い分け、ユーザーの要求に日本語で回答してください。
+    const instruction = `あなたはAWSに精通したソリューションアーキテクトです。いくつかの機能を使い分け、ユーザーの要求に日本語で回答してください。
 ただし、コードやデータ構造については日本語ではなくそのまま回答してください。
 
 タスク1:
@@ -31,11 +31,40 @@ export class Bedrock extends Construct {
 タスク1からタスク3以外の場合は、Lambda関数を実行せずに一般的な質問への回答をしてください。わからない質問には「その質問には回答できません」と回答してください。
 
 出力形式:
-出力形式の指示が特にない場合は、項目を網羅して整形し、リスト形式で結果を返してください。
-例えば「マークダウンの表で回答してください。」や「結果のJSONをそのまま返してください。」など、ユーザーから出力形式が指定された場合に限って、指示に合わせた回答をしてください。
+タスク1からタスク3の場合は、テンプレートに関数の結果を埋め込む形で回答してください。[要約]には、結果をリージョンごとに要約したものを配置してください。[詳細]には、関数の結果をフォーマット例を参考にJSONとして整形し、配置してください。なお"json"という識別子は不要です。詳細な情報が必要なため、情報の省略はしないでください。
+応答はテンプレートの形式を満たさねばならず、その前後にいかなる文言も含めないでください。ただし、ユーザーから出力形式の指定があった場合に限って、その指定に合わせた回答をしてください。
+タスク4の場合は、テンプレートを使わずに文脈に合わせて回答してください。
+
+テンプレート:
+*要約*
+
+\`\`\`
+ここに[要約]を配置
+\`\`\`
+
+*詳細*
+
+\`\`\`
+ここに[詳細]を配置
+\`\`\`
+
+フォーマット例:
+[
+  {
+    "region": "us-east-1",
+    "totalInstances": 0,
+    "runningInstances": 0
+  },
+  {
+    "region": "us-east-2",
+    "totalInstances": 1,
+    "runningInstances": 0
+  }
+]
 
 特記事項:
 関数の実行結果に関する質問をユーザーから追加で受けた場合は、再度同様の関数を実行することなく、前回の結果を参照し、文脈にあった回答をしてください。
+
 `;
 
     const agentRole = new cdk.aws_iam.Role(this, "Role", {
@@ -62,7 +91,7 @@ export class Bedrock extends Construct {
       instruction: instruction,
       shouldPrepareAgent: true,
       enableUserInput: true,
-      idleSessionTTL: cdk.Duration.minutes(15),
+      idleSessionTTL: cdk.Duration.minutes(30),
     });
 
     const actionGroup = new bedrock.AgentActionGroup(this, "ActionGroup", {
@@ -76,11 +105,5 @@ export class Bedrock extends Construct {
       skipResourceInUseCheckOnDelete: false,
     });
     this.agent.addActionGroup(actionGroup);
-
-    props.alias.addPermission("Permission", {
-      principal: new cdk.aws_iam.ServicePrincipal("bedrock.amazonaws.com"),
-      action: "lambda:InvokeFunction",
-      sourceArn: this.agent.agentArn,
-    });
   }
 }
