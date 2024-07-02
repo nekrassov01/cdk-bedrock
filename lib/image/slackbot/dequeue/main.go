@@ -22,7 +22,7 @@ import (
 const isDebug = true
 
 var (
-	wr   *Wrapper
+	wr   *wrapper
 	envs = map[string]string{
 		"AWS_REGION":           "",
 		"AGENT_ID":             "",
@@ -32,7 +32,7 @@ var (
 	}
 )
 
-type Wrapper struct {
+type wrapper struct {
 	ctx         context.Context
 	slackClient *slack.Client
 	agentClient *bedrockagentruntime.Client
@@ -56,7 +56,7 @@ func init() {
 		log.Fatal(err)
 	}
 
-	wr = &Wrapper{
+	wr = &wrapper{
 		ctx:         ctx,
 		slackClient: slack.New(envs["SLACK_OAUTH_TOKEN"]),
 		agentClient: bedrockagentruntime.NewFromConfig(
@@ -68,7 +68,7 @@ func init() {
 	}
 }
 
-func (wr *Wrapper) handle(req events.SQSEvent) error {
+func handle(req events.SQSEvent) error {
 	var msg messages.QueueMessage
 	body := req.Records[0].Body
 	if err := json.Unmarshal([]byte(body), &msg); err != nil {
@@ -78,7 +78,7 @@ func (wr *Wrapper) handle(req events.SQSEvent) error {
 		fmt.Println(body)
 	}
 
-	answer, err := wr.invokeAgent(msg.InputText, msg.TimeStamp)
+	answer, err := invokeAgent(msg.InputText, msg.TimeStamp)
 	if err != nil {
 		return err
 	}
@@ -122,7 +122,7 @@ func (wr *Wrapper) handle(req events.SQSEvent) error {
 	return nil
 }
 
-func (wr *Wrapper) invokeAgent(text, timestamp string) (string, error) {
+func invokeAgent(text, timestamp string) (string, error) {
 	in := &bedrockagentruntime.InvokeAgentInput{
 		InputText:    aws.String(text),
 		AgentId:      aws.String(envs["AGENT_ID"]),
@@ -183,5 +183,5 @@ func (wr *Wrapper) invokeAgent(text, timestamp string) (string, error) {
 }
 
 func main() {
-	lambda.Start(wr.handle)
+	lambda.Start(handle)
 }

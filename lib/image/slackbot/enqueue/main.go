@@ -22,7 +22,7 @@ import (
 const isDebug = true
 
 var (
-	wr   *Wrapper
+	wr   *wrapper
 	envs = map[string]string{
 		"AWS_REGION":           "",
 		"QUEUE_URL":            "",
@@ -31,7 +31,7 @@ var (
 	}
 )
 
-type Wrapper struct {
+type wrapper struct {
 	ctx         context.Context
 	slackClient *slack.Client
 	queueClient *sqs.Client
@@ -55,7 +55,7 @@ func init() {
 		log.Fatal(err)
 	}
 
-	wr = &Wrapper{
+	wr = &wrapper{
 		ctx:         ctx,
 		slackClient: slack.New(envs["SLACK_OAUTH_TOKEN"]),
 		queueClient: sqs.NewFromConfig(
@@ -67,7 +67,7 @@ func init() {
 	}
 }
 
-func (wr *Wrapper) handle(req events.APIGatewayProxyRequest) (*events.APIGatewayProxyResponse, error) {
+func handle(req events.APIGatewayProxyRequest) (*events.APIGatewayProxyResponse, error) {
 	if reason, ok := req.Headers["x-slack-retry-reason"]; ok && reason == "http_timeout" {
 		return doOK("ok", "info: skip retrying due to http_timeout"), nil
 	}
@@ -213,5 +213,5 @@ func doOK(body, msg string) *events.APIGatewayProxyResponse {
 }
 
 func main() {
-	lambda.Start(wr.handle)
+	lambda.Start(handle)
 }
