@@ -43,8 +43,9 @@ func init() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	for _, region := range out.Regions {
-		d.regions = append(d.regions, *region.RegionName)
+	d.regions = make([]string, len(out.Regions))
+	for i, region := range out.Regions {
+		d.regions[i] = aws.ToString(region.RegionName)
 	}
 }
 
