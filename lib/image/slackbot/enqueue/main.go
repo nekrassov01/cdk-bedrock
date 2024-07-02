@@ -185,7 +185,7 @@ func doSend(channelID, timestamp, text string) error {
 		TimeStamp:               timestamp,
 		InitialMessageChannelID: id,
 		InitialMessageTimeStamp: ts,
-		InputText:               strings.TrimSuffix(text, messages.ContexstMessage),
+		InputText:               strings.TrimSuffix(text, messages.ContextMessage),
 	}
 	body, err := json.Marshal(msg)
 	if err != nil {

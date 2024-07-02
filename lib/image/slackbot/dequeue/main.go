@@ -102,7 +102,7 @@ func (wr *Wrapper) handle(req events.SQSEvent) error {
 					Elements: []slack.MixedElement{
 						slack.TextBlockObject{
 							Type: "plain_text",
-							Text: messages.ContexstMessage,
+							Text: messages.ContextMessage,
 						},
 					},
 				},
