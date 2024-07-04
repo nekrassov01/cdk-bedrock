@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"runtime"
 	"slackbot/messages"
 	"strings"
 	"sync"
@@ -136,9 +137,9 @@ func invokeAgent(text, timestamp string) (string, error) {
 		return "", err
 	}
 
-	cch := make(chan string) // chunk
-	ech := make(chan error)  // error
-	dch := make(chan bool)   // done
+	cch := make(chan string, runtime.NumCPU()) // chunk
+	ech := make(chan error, 1)                 // error
+	dch := make(chan bool, 1)                  // done
 
 	var wg sync.WaitGroup
 	var sb strings.Builder

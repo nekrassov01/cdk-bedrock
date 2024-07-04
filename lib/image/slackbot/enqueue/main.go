@@ -155,7 +155,10 @@ func doAppMentionEvent(event *slackevents.AppMentionEvent) error {
 }
 
 func doMessageEvent(event *slackevents.MessageEvent) error {
-	if event.ChannelType != "im" || event.BotID != "" || event.SubType == "message_changed" || event.SubType == "message_deleted" {
+	if event.ChannelType != "im" ||
+		event.BotID != "" ||
+		event.SubType == "message_changed" ||
+		event.SubType == "message_deleted" {
 		fmt.Println("info: skip non-covered event")
 		return nil
 	}
