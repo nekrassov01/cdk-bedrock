@@ -7,6 +7,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"regexp"
 	"slackbot/messages"
 	"strings"
 
@@ -22,8 +23,9 @@ import (
 const isDebug = true
 
 var (
-	wr   *wrapper
-	envs = map[string]string{
+	wr    *wrapper
+	reply = regexp.MustCompile(`<@[A-Za-z0-9\.-_]*>\s`)
+	envs  = map[string]string{
 		"AWS_REGION":           "",
 		"QUEUE_URL":            "",
 		"SLACK_OAUTH_TOKEN":    "",
@@ -151,7 +153,7 @@ func doAppMentionEvent(event *slackevents.AppMentionEvent) error {
 	if ts == "" {
 		ts = event.TimeStamp
 	}
-	return doSend(event.Channel, ts, event.Text)
+	return doSend(event.Channel, ts, reply.ReplaceAllString(event.Text, ""))
 }
 
 func doMessageEvent(event *slackevents.MessageEvent) error {
