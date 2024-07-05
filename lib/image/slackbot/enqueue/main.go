@@ -58,8 +58,11 @@ func init() {
 	}
 
 	wr = &wrapper{
-		ctx:         ctx,
-		slackClient: slack.New(envs["SLACK_OAUTH_TOKEN"]),
+		ctx: ctx,
+		slackClient: slack.New(
+			envs["SLACK_OAUTH_TOKEN"],
+			slack.OptionDebug(isDebug),
+			slack.OptionLog(log.New(os.Stdout, "slack: ", log.Lshortfile|log.LstdFlags))),
 		queueClient: sqs.NewFromConfig(
 			cfg,
 			func(o *sqs.Options) {
@@ -157,10 +160,10 @@ func doAppMentionEvent(event *slackevents.AppMentionEvent) error {
 }
 
 func doMessageEvent(event *slackevents.MessageEvent) error {
-	if event.ChannelType != "im" ||
+	if event.ChannelType != slack.TYPE_IM ||
 		event.BotID != "" ||
-		event.SubType == "message_changed" ||
-		event.SubType == "message_deleted" {
+		event.SubType == slack.MsgSubTypeMessageChanged ||
+		event.SubType == slack.MsgSubTypeMessageDeleted {
 		fmt.Println("info: skip non-covered event")
 		return nil
 	}
@@ -203,7 +206,7 @@ func doSend(channelID, timestamp, text string) error {
 	if _, err := wr.queueClient.SendMessage(wr.ctx, in); err != nil {
 		return err
 	}
-	fmt.Println("success: enqueue recieved message")
+	fmt.Println("success: enqueue message")
 
 	return nil
 }

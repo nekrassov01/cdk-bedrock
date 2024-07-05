@@ -6,7 +6,7 @@ paths:
   /count/{regions}:
     get:
       summary: Check EC2 instances count in specified regions
-      description: パラメーターで指定されたリージョンに存在するインスタンスの総数、実行中のインスタンスの数を集計してJSONで返します。パラメーターが指定されなかった場合はregionsを空にすることで全リージョンが対象になります。
+      description: パラメーターで指定されたリージョンに存在するインスタンスの総数、実行中のインスタンスの数を集計してJSONで返します。パラメーターに"all"を指定した場合は全リージョンが対象になります。
       operationId: get_instances_count_by_regions
       parameters:
         - name: regions
@@ -37,7 +37,7 @@ paths:
   /check-without-owner/{regions}:
     get:
       summary: Check EC2 instances without owner tag in specified regions
-      description: パラメーターで指定されたリージョンに存在するインスタンスに対してOwnerタグが付与されているか確認し、リージョン名、インスタンスID、インスタンス名、インスタンスの状態、を収集してJSONで返します。パラメーターが指定されなかった場合はregionsを空にすることで全リージョンが対象になります。
+      description: パラメーターで指定されたリージョンに存在するインスタンスに対してOwnerタグが付与されているか確認し、リージョン名、インスタンスID、インスタンス名、インスタンスの状態、を収集してJSONで返します。パラメーターに"all"を指定した場合は全リージョンが対象になります。
       operationId: get_instances_without_owner_by_regions
       parameters:
         - name: regions
@@ -71,7 +71,7 @@ paths:
   /check-open-permission/{regions}:
     get:
       summary: Check EC2 instances with open permission in specified regions
-      description: パラメーターで指定されたリージョンに存在するインスタンスに対してインバウンド通信で0.0.0.0/0が許可されているかを確認し、リージョン名、インスタンスID、インスタンス名、インスタンスの状態、許可されているプロトコル、開始ポート、終了ポート、どのセキュリティグループからの許可かを示すセキュリティグループ名を収集してJSONで返します。パラメーターが指定されなかった場合はregionsを空にすることで全リージョンが対象になります。
+      description: パラメーターで指定されたリージョンに存在するインスタンスに対してインバウンド通信で0.0.0.0/0が許可されているかを確認し、リージョン名、インスタンスID、インスタンス名、インスタンスの状態、許可されているプロトコル、開始ポート、終了ポート、どのセキュリティグループからの許可かを示すセキュリティグループ名を収集してJSONで返します。パラメーターに"all"を指定した場合は全リージョンが対象になります。
       operationId: get_instances_with_open_permission_by_regions
       parameters:
         - name: regions

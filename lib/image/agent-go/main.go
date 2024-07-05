@@ -16,7 +16,10 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/ec2/types"
 )
 
-const defaultMapSize = 8
+const (
+	isDebug        = true
+	defaultMapSize = 8
+)
 
 var d *Describer
 
@@ -55,11 +58,11 @@ type CountInfo struct {
 	RunningInstances int    `json:"runningInstances"`
 }
 
-func (d *Describer) GetInstancesCount() ([]CountInfo, error) {
+func GetInstancesCount(regions []string) ([]CountInfo, error) {
 	var wg sync.WaitGroup
 	ich := make(chan CountInfo, len(d.regions))
 	ech := make(chan error, 1)
-	for _, region := range d.regions {
+	for _, region := range regions {
 		region := region
 		wg.Add(1)
 		go func() {
@@ -129,11 +132,11 @@ type InstanceInfo struct {
 	State        types.InstanceStateName `json:"state"`
 }
 
-func (d *Describer) GetInstancesWithoutOwner() ([]InstanceInfo, error) {
+func GetInstancesWithoutOwner(regions []string) ([]InstanceInfo, error) {
 	var wg sync.WaitGroup
 	ich := make(chan InstanceInfo, runtime.NumCPU())
 	ech := make(chan error, 1)
-	for _, region := range d.regions {
+	for _, region := range regions {
 		region := region
 		wg.Add(1)
 		go func() {
@@ -208,16 +211,16 @@ type InstanceSecurityGroupInfo struct {
 	Permissions  []PermissionInfo        `json:"permissions"`
 }
 
-func (d *Describer) GetInstancesWithOpenPermission() ([]InstanceSecurityGroupInfo, error) {
+func GetInstancesWithOpenPermission(regions []string) ([]InstanceSecurityGroupInfo, error) {
 	var wg sync.WaitGroup
 	ich := make(chan InstanceSecurityGroupInfo, runtime.NumCPU())
 	ech := make(chan error, 1)
-	for _, region := range d.regions {
+	for _, region := range regions {
 		region := region
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			sgmap, err := d.getOpenSecurityGroups(region)
+			sgmap, err := getOpenSecurityGroups(region)
 			if err != nil {
 				select {
 				case ech <- err:
@@ -298,7 +301,7 @@ func (d *Describer) GetInstancesWithOpenPermission() ([]InstanceSecurityGroupInf
 	}
 }
 
-func (d *Describer) getOpenSecurityGroups(region string) (map[string][]PermissionInfo, error) {
+func getOpenSecurityGroups(region string) (map[string][]PermissionInfo, error) {
 	m := make(map[string][]PermissionInfo, defaultMapSize)
 	var token *string
 	for {
@@ -378,27 +381,28 @@ type Response struct {
 	ResponseBody   map[string]map[string]any `json:"responseBody"`
 }
 
-func (d *Describer) getRegionNames(event EventRequest) {
+func getRegionNames(event EventRequest) []string {
 	for _, parameter := range event.Parameters {
-		if parameter.Name == "regions" && parameter.Value != "" {
-			d.regions = strings.Split(parameter.Value, ",")
+		if parameter.Name == "regions" && parameter.Value != "all" {
+			return strings.Split(parameter.Value, ",")
 		}
 	}
+	return d.regions
 }
 
-func (d *Describer) handle(event *EventRequest) (*EventResponse, error) {
+func handle(event *EventRequest) (*EventResponse, error) {
 	fmt.Println("processing by golang")
-	d.getRegionNames(*event)
+	regions := getRegionNames(*event)
 	apiPath := event.APIPath
 	var body any
 	var err error
 	switch apiPath {
 	case "/count/{regions}":
-		body, err = d.GetInstancesCount()
+		body, err = GetInstancesCount(regions)
 	case "/check-without-owner/{regions}":
-		body, err = d.GetInstancesWithoutOwner()
+		body, err = GetInstancesWithoutOwner(regions)
 	case "/check-open-permission/{regions}":
-		body, err = d.GetInstancesWithOpenPermission()
+		body, err = GetInstancesWithOpenPermission(regions)
 	default:
 		return nil, fmt.Errorf("api path \"%s\" not suppported", apiPath)
 	}
@@ -419,14 +423,16 @@ func (d *Describer) handle(event *EventRequest) (*EventResponse, error) {
 			},
 		},
 	}
-	result, err := json.Marshal(resp) // for debug
-	if err != nil {
-		return nil, err
+	if isDebug {
+		result, err := json.Marshal(resp)
+		if err != nil {
+			return nil, err
+		}
+		fmt.Println(string(result))
 	}
-	fmt.Println(string(result))
 	return resp, nil
 }
 
 func main() {
-	lambda.Start(d.handle)
+	lambda.Start(handle)
 }

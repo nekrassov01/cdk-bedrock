@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"runtime"
 	"slackbot/messages"
 	"strings"
 	"sync"
@@ -58,8 +57,12 @@ func init() {
 	}
 
 	wr = &wrapper{
-		ctx:         ctx,
-		slackClient: slack.New(envs["SLACK_OAUTH_TOKEN"]),
+		ctx: ctx,
+		slackClient: slack.New(
+			envs["SLACK_OAUTH_TOKEN"],
+			slack.OptionDebug(isDebug),
+			slack.OptionLog(log.New(os.Stdout, "slack: ", log.Lshortfile|log.LstdFlags)),
+		),
 		agentClient: bedrockagentruntime.NewFromConfig(
 			cfg,
 			func(o *bedrockagentruntime.Options) {
@@ -92,17 +95,19 @@ func handle(req events.SQSEvent) error {
 			&slack.SectionBlock{
 				Type: slack.MBTSection,
 				Text: &slack.TextBlockObject{
-					Type: "mrkdwn",
+					Type: slack.MarkdownType,
 					Text: answer,
 				},
 			},
-			slack.NewDividerBlock(),
+			&slack.DividerBlock{
+				Type: slack.MBTDivider,
+			},
 			&slack.ContextBlock{
-				Type: "context",
+				Type: slack.MBTContext,
 				ContextElements: slack.ContextElements{
 					Elements: []slack.MixedElement{
-						slack.TextBlockObject{
-							Type: "plain_text",
+						&slack.TextBlockObject{
+							Type: slack.PlainTextType,
 							Text: messages.ContextMessage,
 						},
 					},
@@ -111,7 +116,7 @@ func handle(req events.SQSEvent) error {
 		),
 		slack.MsgOptionTS(msg.TimeStamp),
 	}
-	if _, _, err = wr.slackClient.PostMessage(msg.ChannelID, opts...); err != nil {
+	if _, _, err := wr.slackClient.PostMessage(msg.ChannelID, opts...); err != nil {
 		return err
 	}
 
@@ -137,9 +142,9 @@ func invokeAgent(text, timestamp string) (string, error) {
 		return "", err
 	}
 
-	cch := make(chan string, runtime.NumCPU()) // chunk
-	ech := make(chan error, 1)                 // error
-	dch := make(chan bool, 1)                  // done
+	cch := make(chan string) // chunk
+	ech := make(chan error)  // error
+	dch := make(chan bool)   // done
 
 	var wg sync.WaitGroup
 	var sb strings.Builder
