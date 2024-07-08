@@ -75,11 +75,6 @@ func init() {
 func handle(req events.SQSEvent) error {
 	var msg slackbot.QueueMessage
 	body := req.Records[0].Body
-
-	for _, body := range req.Records {
-		//body
-		fmt.Println(body)
-	}
 	if err := json.Unmarshal([]byte(body), &msg); err != nil {
 		return err
 	}
