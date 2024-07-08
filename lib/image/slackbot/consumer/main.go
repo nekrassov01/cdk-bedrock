@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"slackbot/messages"
+	"slackbot"
 	"strings"
 	"sync"
 
@@ -73,8 +73,13 @@ func init() {
 }
 
 func handle(req events.SQSEvent) error {
-	var msg messages.QueueMessage
+	var msg slackbot.QueueMessage
 	body := req.Records[0].Body
+
+	for _, body := range req.Records {
+		//body
+		fmt.Println(body)
+	}
 	if err := json.Unmarshal([]byte(body), &msg); err != nil {
 		return err
 	}
@@ -108,7 +113,7 @@ func handle(req events.SQSEvent) error {
 					Elements: []slack.MixedElement{
 						&slack.TextBlockObject{
 							Type: slack.PlainTextType,
-							Text: messages.ContextMessage,
+							Text: slackbot.ContextMessage,
 						},
 					},
 				},

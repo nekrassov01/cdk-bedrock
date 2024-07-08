@@ -1,4 +1,4 @@
-package messages
+package slackbot
 
 const (
 	InitialMessage = ":loading2: 回答を準備中..."

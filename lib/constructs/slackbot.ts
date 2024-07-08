@@ -26,11 +26,11 @@ export class SlackBot extends Construct {
       receiveMessageWaitTime: cdk.Duration.seconds(10),
     });
 
-    const enqueueRole = new cdk.aws_iam.Role(this, "EnqueueRole", {
-      roleName: `${props.serviceName}-slackbot-enqueue-role`,
+    const producerRole = new cdk.aws_iam.Role(this, "ProducerRole", {
+      roleName: `${props.serviceName}-slackbot-producer-role`,
       assumedBy: new cdk.aws_iam.ServicePrincipal("lambda.amazonaws.com"),
       inlinePolicies: {
-        SlackBotEnqueueRoleAdditionalPolicy: new cdk.aws_iam.PolicyDocument({
+        SlackBotProducerRoleAdditionalPolicy: new cdk.aws_iam.PolicyDocument({
           statements: [
             new cdk.aws_iam.PolicyStatement({
               effect: cdk.aws_iam.Effect.ALLOW,
@@ -42,18 +42,18 @@ export class SlackBot extends Construct {
       },
     });
 
-    const enqueueFn = new cdk.aws_lambda.DockerImageFunction(this, "EnqueueFunction", {
-      functionName: `${props.serviceName}-slackbot-enqueue`,
-      description: `${props.serviceName}-slackbot-enqueue`,
+    const producerFn = new cdk.aws_lambda.DockerImageFunction(this, "ProducerFunction", {
+      functionName: `${props.serviceName}-slackbot-producer`,
+      description: `${props.serviceName}-slackbot-producer`,
       code: cdk.aws_lambda.DockerImageCode.fromImageAsset("lib/image/slackbot", {
         buildArgs: {
-          NAME: "enqueue",
+          NAME: "producer",
           HTTP_PROXY: props.httpProxy,
           HTTPS_PROXY: props.httpProxy,
         },
       }),
       architecture: cdk.aws_lambda.Architecture.ARM_64,
-      role: enqueueRole,
+      role: producerRole,
       logRetention: cdk.aws_logs.RetentionDays.THREE_DAYS,
       currentVersionOptions: {
         removalPolicy: cdk.RemovalPolicy.RETAIN,
@@ -66,17 +66,17 @@ export class SlackBot extends Construct {
       },
     });
 
-    const enqueueAlias = new cdk.aws_lambda.Alias(this, "EnqueueAlias", {
+    const producerAlias = new cdk.aws_lambda.Alias(this, "ProducerAlias", {
       aliasName: "live",
-      version: enqueueFn.currentVersion,
+      version: producerFn.currentVersion,
     });
-    queue.grantSendMessages(enqueueAlias);
+    queue.grantSendMessages(producerAlias);
 
-    const dequeueRole = new cdk.aws_iam.Role(this, "DequeueRole", {
-      roleName: `${props.serviceName}-slackbot-dequeue-role`,
+    const consumerRole = new cdk.aws_iam.Role(this, "ConsumerRole", {
+      roleName: `${props.serviceName}-slackbot-consumer-role`,
       assumedBy: new cdk.aws_iam.ServicePrincipal("lambda.amazonaws.com"),
       inlinePolicies: {
-        SlackBotDequeueRoleAdditionalPolicy: new cdk.aws_iam.PolicyDocument({
+        SlackBotConsumerRoleAdditionalPolicy: new cdk.aws_iam.PolicyDocument({
           statements: [
             new cdk.aws_iam.PolicyStatement({
               effect: cdk.aws_iam.Effect.ALLOW,
@@ -93,18 +93,18 @@ export class SlackBot extends Construct {
       },
     });
 
-    const dequeueFn = new cdk.aws_lambda.DockerImageFunction(this, "DequeueFunction", {
-      functionName: `${props.serviceName}-slackbot-dequeue`,
-      description: `${props.serviceName}-slackbot-dequeue`,
+    const consumerFn = new cdk.aws_lambda.DockerImageFunction(this, "ConsumerFunction", {
+      functionName: `${props.serviceName}-slackbot-consumer`,
+      description: `${props.serviceName}-slackbot-consumer`,
       code: cdk.aws_lambda.DockerImageCode.fromImageAsset("lib/image/slackbot", {
         buildArgs: {
-          NAME: "dequeue",
+          NAME: "consumer",
           HTTP_PROXY: props.httpProxy,
           HTTPS_PROXY: props.httpProxy,
         },
       }),
       architecture: cdk.aws_lambda.Architecture.ARM_64,
-      role: dequeueRole,
+      role: consumerRole,
       logRetention: cdk.aws_logs.RetentionDays.THREE_DAYS,
       currentVersionOptions: {
         removalPolicy: cdk.RemovalPolicy.RETAIN,
@@ -119,13 +119,13 @@ export class SlackBot extends Construct {
       },
     });
 
-    const dequeueAlias = new cdk.aws_lambda.Alias(this, "DequeueAlias", {
+    const consumerAlias = new cdk.aws_lambda.Alias(this, "ConsumerAlias", {
       aliasName: "live",
-      version: dequeueFn.currentVersion,
+      version: consumerFn.currentVersion,
     });
-    queue.grantConsumeMessages(dequeueAlias);
+    queue.grantConsumeMessages(consumerAlias);
 
-    dequeueAlias.addEventSource(
+    consumerAlias.addEventSource(
       new cdk.aws_lambda_event_sources.SqsEventSource(queue, {
         batchSize: 1,
         maxConcurrency: 2,
@@ -161,7 +161,7 @@ export class SlackBot extends Construct {
     api.addRoutes({
       methods: [cdk.aws_apigatewayv2.HttpMethod.ANY],
       path: "/slack/callback",
-      integration: new cdk.aws_apigatewayv2_integrations.HttpLambdaIntegration("Callback", enqueueAlias),
+      integration: new cdk.aws_apigatewayv2_integrations.HttpLambdaIntegration("Callback", producerAlias),
     });
 
     const logGroup = new cdk.aws_logs.LogGroup(this, "LogGroup", {

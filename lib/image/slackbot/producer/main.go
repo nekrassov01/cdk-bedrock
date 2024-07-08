@@ -8,7 +8,7 @@ import (
 	"net/http"
 	"os"
 	"regexp"
-	"slackbot/messages"
+	"slackbot"
 	"strings"
 
 	"github.com/aws/aws-lambda-go/events"
@@ -62,7 +62,8 @@ func init() {
 		slackClient: slack.New(
 			envs["SLACK_OAUTH_TOKEN"],
 			slack.OptionDebug(isDebug),
-			slack.OptionLog(log.New(os.Stdout, "slack: ", log.Lshortfile|log.LstdFlags))),
+			slack.OptionLog(log.New(os.Stdout, "slack: ", log.Lshortfile|log.LstdFlags)),
+		),
 		queueClient: sqs.NewFromConfig(
 			cfg,
 			func(o *sqs.Options) {
@@ -178,7 +179,7 @@ func doMessageEvent(event *slackevents.MessageEvent) error {
 func doSend(channelID, timestamp, text string) error {
 	// ack
 	opts := []slack.MsgOption{
-		slack.MsgOptionText(messages.InitialMessage, false),
+		slack.MsgOptionText(slackbot.InitialMessage, false),
 		slack.MsgOptionTS(timestamp),
 	}
 	id, ts, err := wr.slackClient.PostMessage(channelID, opts...)
@@ -188,12 +189,12 @@ func doSend(channelID, timestamp, text string) error {
 	fmt.Println("success: send initial message")
 
 	// enqueue
-	msg := messages.QueueMessage{
+	msg := slackbot.QueueMessage{
 		ChannelID:               channelID,
 		TimeStamp:               timestamp,
 		InitialMessageChannelID: id,
 		InitialMessageTimeStamp: ts,
-		InputText:               strings.TrimSuffix(text, messages.ContextMessage),
+		InputText:               strings.TrimSuffix(text, slackbot.ContextMessage),
 	}
 	body, err := json.Marshal(msg)
 	if err != nil {

@@ -3,8 +3,7 @@ ARG HTTP_PROXY
 ARG HTTPS_PROXY
 ARG NAME
 WORKDIR /slackbot
-COPY go.mod go.sum ./
-COPY messages ./messages/
+COPY go.mod go.sum utils.go ./
 COPY ${NAME} ./${NAME}/
 RUN HTTP_PROXY=${HTTP_PROXY} HTTPS_PROXY=${HTTPS_PROXY} go build -o main ${NAME}/main.go
 
