@@ -14,19 +14,27 @@ export interface Parameter {
   hasUI: boolean;
 }
 
-export const exampleParameter: Parameter = {
+/**
+First, Create `parameter.ts` to set your parameters as follows:
+*/
+
+/**
+import { Parameter } from "./parameter.template";
+
+export const parameter: Parameter = {
   env: {
     account: process.env.CDK_DEFAULT_ACCOUNT,
     region: "us-east-1",
   },
   terminationProtection: false,
-  owner: "user",
-  serviceName: "my-service",
+  owner: "stack-creator",
+  serviceName: "test-service",
   allowedIps: ["0.0.0.0/0"],
-  httpProxy: "http://my-proxy.com:port",
-  hostZoneName: "user/reponame",
-  repository: "example.com",
+  httpProxy: "http://your-proxy.com:port",
+  hostZoneName: "your-domain.com",
+  repository: "user/your-app",
   slackOAuthToken: "foo",
   slackSigningSecret: "bar",
   hasUI: false,
 };
+*/
