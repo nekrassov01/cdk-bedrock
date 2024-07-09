@@ -12,3 +12,4 @@ cdk.json
 cdk.context.json
 .backup
 *.zip
+parameter*.ts
