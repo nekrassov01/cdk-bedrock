@@ -2,23 +2,24 @@
 import "source-map-support/register";
 import * as cdk from "aws-cdk-lib";
 import { BedrockStack } from "../lib/stack";
+import { parameter } from "../parameter";
 
 const app = new cdk.App();
 
 new BedrockStack(app, "BedrockStack", {
   env: {
-    account: process.env.CDK_DEFAULT_ACCOUNT,
-    region: "us-east-1",
+    account: parameter.env?.account,
+    region: parameter.env?.region,
   },
-  terminationProtection: false,
-  serviceName: app.node.tryGetContext("serviceName"),
-  allowedIps: app.node.tryGetContext("allowedIps"),
-  httpProxy: app.node.tryGetContext("httpProxy"),
-  hostZoneName: app.node.tryGetContext("hostZoneName"),
-  repository: app.node.tryGetContext("repository"),
-  slackOAuthToken: app.node.tryGetContext("slackOAuthToken"),
-  slackSigningSecret: app.node.tryGetContext("slackSigningSecret"),
-  hasUI: app.node.tryGetContext("hasUI"),
+  terminationProtection: parameter.terminationProtection,
+  serviceName: parameter.serviceName,
+  allowedIps: parameter.allowedIps,
+  httpProxy: parameter.httpProxy,
+  hostZoneName: parameter.hostZoneName,
+  repository: parameter.repository,
+  slackOAuthToken: parameter.slackOAuthToken,
+  slackSigningSecret: parameter.slackSigningSecret,
+  hasUI: parameter.hasUI,
 });
 
-cdk.Tags.of(app).add("Owner", app.node.tryGetContext("owner"));
+cdk.Tags.of(app).add("Owner", parameter.owner);
