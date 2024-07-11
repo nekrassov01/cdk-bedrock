@@ -58,146 +58,11 @@ type CountInfo struct {
 	RunningInstances int    `json:"runningInstances"`
 }
 
-func GetInstancesCount(regions []string) ([]CountInfo, error) {
-	var wg sync.WaitGroup
-	ich := make(chan CountInfo, len(regions))
-	ech := make(chan error, 1)
-	for _, region := range regions {
-		region := region
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			total := 0
-			running := 0
-			var token *string
-			for {
-				out, err := d.client.DescribeInstances(
-					d.ctx,
-					&ec2.DescribeInstancesInput{
-						NextToken: token,
-					},
-					func(o *ec2.Options) {
-						o.Region = region
-					},
-				)
-				if err != nil {
-					select {
-					case ech <- fmt.Errorf("%s: %w", region, err):
-					default:
-					}
-					return
-				}
-				for _, r := range out.Reservations {
-					total += len(r.Instances)
-					for _, i := range r.Instances {
-						if i.State.Name == types.InstanceStateNameRunning {
-							running++
-						}
-					}
-				}
-				token = out.NextToken
-				if token == nil {
-					break
-				}
-			}
-			ich <- CountInfo{
-				Region:           region,
-				TotalInstances:   total,
-				RunningInstances: running,
-			}
-		}()
-	}
-
-	go func() {
-		wg.Wait()
-		close(ich)
-		close(ech)
-	}()
-
-	var info []CountInfo
-	for {
-		select {
-		case count, ok := <-ich:
-			if !ok {
-				return info, nil
-			}
-			info = append(info, count)
-		case err := <-ech:
-			return nil, err
-		}
-	}
-}
-
 type InstanceInfo struct {
 	Region       string                  `json:"region"`
 	InstanceID   string                  `json:"instanceId"`
 	InstanceName string                  `json:"instanceName"`
 	State        types.InstanceStateName `json:"state"`
-}
-
-func GetInstancesWithoutOwner(regions []string) ([]InstanceInfo, error) {
-	var wg sync.WaitGroup
-	ich := make(chan InstanceInfo, runtime.NumCPU())
-	ech := make(chan error, 1)
-	for _, region := range regions {
-		region := region
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			var token *string
-			for {
-				out, err := d.client.DescribeInstances(
-					d.ctx,
-					&ec2.DescribeInstancesInput{
-						NextToken: token,
-					},
-					func(o *ec2.Options) {
-						o.Region = region
-					},
-				)
-				if err != nil {
-					select {
-					case ech <- fmt.Errorf("%s: %w", region, err):
-					default:
-					}
-					return
-				}
-				for _, r := range out.Reservations {
-					for _, i := range r.Instances {
-						if getInstanceTagValue("Owner", i.Tags) == "" {
-							ich <- InstanceInfo{
-								Region:       region,
-								InstanceID:   aws.ToString(i.InstanceId),
-								InstanceName: getInstanceTagValue("Name", i.Tags),
-								State:        i.State.Name,
-							}
-						}
-					}
-				}
-				token = out.NextToken
-				if token == nil {
-					break
-				}
-			}
-		}()
-	}
-	go func() {
-		wg.Wait()
-		close(ich)
-		close(ech)
-	}()
-	info := []InstanceInfo{}
-	for {
-		select {
-		case i, ok := <-ich:
-			if !ok {
-				return info, nil
-			}
-			info = append(info, i)
-		case err := <-ech:
-			return nil, err
-		}
-	}
 }
 
 type PermissionInfo struct {
@@ -215,150 +80,9 @@ type InstanceSecurityGroupInfo struct {
 	Permissions  []PermissionInfo        `json:"permissions"`
 }
 
-func GetInstancesWithOpenPermission(regions []string) ([]InstanceSecurityGroupInfo, error) {
-	var wg sync.WaitGroup
-	ich := make(chan InstanceSecurityGroupInfo, runtime.NumCPU())
-	ech := make(chan error, 1)
-	for _, region := range regions {
-		region := region
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			sgmap, err := getOpenSecurityGroups(region)
-			if err != nil {
-				select {
-				case ech <- fmt.Errorf("%s: %w", region, err):
-				default:
-				}
-				return
-			}
-			if len(sgmap) == 0 {
-				return
-			}
-			var sgids []string
-			for sgid := range sgmap {
-				sgids = append(sgids, sgid)
-			}
-			var token *string
-			for {
-				out, err := d.client.DescribeInstances(
-					d.ctx,
-					&ec2.DescribeInstancesInput{
-						NextToken: token,
-						Filters: []types.Filter{
-							{
-								Name:   aws.String("instance.group-id"),
-								Values: sgids,
-							},
-						},
-					},
-					func(o *ec2.Options) {
-						o.Region = region
-					},
-				)
-				if err != nil {
-					select {
-					case ech <- fmt.Errorf("%s: %w", region, err):
-					default:
-					}
-					return
-				}
-				for _, r := range out.Reservations {
-					for _, i := range r.Instances {
-						var permissions []PermissionInfo
-						for _, sg := range i.SecurityGroups {
-							if perms, ok := sgmap[aws.ToString(sg.GroupId)]; ok {
-								permissions = append(permissions, perms...)
-							}
-						}
-						ich <- InstanceSecurityGroupInfo{
-							Region:       region,
-							InstanceID:   aws.ToString(i.InstanceId),
-							InstanceName: getInstanceTagValue("Name", i.Tags),
-							State:        i.State.Name,
-							Permissions:  permissions,
-						}
-					}
-				}
-				token = out.NextToken
-				if token == nil {
-					break
-				}
-			}
-		}()
-	}
-	go func() {
-		wg.Wait()
-		close(ich)
-		close(ech)
-	}()
-	info := []InstanceSecurityGroupInfo{}
-	for {
-		select {
-		case i, ok := <-ich:
-			if !ok {
-				return info, nil
-			}
-			info = append(info, i)
-		case err := <-ech:
-			return nil, err
-		}
-	}
-}
-
-func getOpenSecurityGroups(region string) (map[string][]PermissionInfo, error) {
-	m := make(map[string][]PermissionInfo, defaultMapSize)
-	var token *string
-	for {
-		openSgs, err := d.client.DescribeSecurityGroups(
-			d.ctx,
-			&ec2.DescribeSecurityGroupsInput{
-				NextToken: token,
-				Filters: []types.Filter{
-					{
-						Name:   aws.String("ip-permission.cidr"),
-						Values: []string{"0.0.0.0/0"},
-					},
-				},
-			},
-			func(o *ec2.Options) {
-				o.Region = region
-			},
-		)
-		if err != nil {
-			return nil, err
-		}
-		for _, sg := range openSgs.SecurityGroups {
-			var permissions []PermissionInfo
-			for _, p := range sg.IpPermissions {
-				for _, ip := range p.IpRanges {
-					if aws.ToString(ip.CidrIp) == "0.0.0.0/0" {
-						permissions = append(permissions, PermissionInfo{
-							IpProtocol: aws.ToString(p.IpProtocol),
-							FromPort:   aws.ToInt32(p.FromPort),
-							ToPort:     aws.ToInt32(p.ToPort),
-							AllowFrom:  aws.ToString(sg.GroupName),
-						})
-					}
-				}
-			}
-			m[aws.ToString(sg.GroupId)] = permissions
-		}
-		token = openSgs.NextToken
-		if token == nil {
-			break
-		}
-	}
-	return m, nil
-}
-
-func getInstanceTagValue(key string, tags []types.Tag) string {
-	for _, t := range tags {
-		if t.Key != nil && strings.EqualFold(aws.ToString(t.Key), key) && t.Value != nil {
-			return aws.ToString(t.Value)
-		}
-	}
-	return ""
+type Result[T any] struct {
+	Value T
+	Err   error
 }
 
 type EventRequest struct {
@@ -395,6 +119,267 @@ func getRegionNames(event EventRequest) []string {
 	return d.regions
 }
 
+func getInstanceTagValue(key string, tags []types.Tag) string {
+	for _, t := range tags {
+		if t.Key != nil && strings.EqualFold(aws.ToString(t.Key), key) && t.Value != nil {
+			return aws.ToString(t.Value)
+		}
+	}
+	return ""
+}
+
+func GetInstancesCount(regions []string) ([]CountInfo, error) {
+	var wg sync.WaitGroup
+	ch := make(chan Result[CountInfo], len(regions))
+
+	for _, region := range regions {
+		wg.Add(1)
+		go func(region string) {
+			defer wg.Done()
+			total := 0
+			running := 0
+			var token *string
+			for {
+				out, err := d.client.DescribeInstances(
+					d.ctx,
+					&ec2.DescribeInstancesInput{
+						NextToken: token,
+					},
+					func(o *ec2.Options) {
+						o.Region = region
+					},
+				)
+				if err != nil {
+					ch <- Result[CountInfo]{Err: fmt.Errorf("%s: %w", region, err)}
+					return
+				}
+				for _, r := range out.Reservations {
+					total += len(r.Instances)
+					for _, i := range r.Instances {
+						if i.State.Name == types.InstanceStateNameRunning {
+							running++
+						}
+					}
+				}
+				token = out.NextToken
+				if token == nil {
+					break
+				}
+			}
+			ch <- Result[CountInfo]{
+				Value: CountInfo{
+					Region:           region,
+					TotalInstances:   total,
+					RunningInstances: running,
+				},
+			}
+		}(region)
+	}
+
+	go func() {
+		wg.Wait()
+		close(ch)
+	}()
+
+	var info []CountInfo
+	for result := range ch {
+		if result.Err != nil {
+			return nil, result.Err
+		}
+		info = append(info, result.Value)
+	}
+	return info, nil
+}
+
+func GetInstancesWithoutOwner(regions []string) ([]InstanceInfo, error) {
+	var wg sync.WaitGroup
+	ch := make(chan Result[InstanceInfo], runtime.NumCPU())
+
+	for _, region := range regions {
+		wg.Add(1)
+		go func(region string) {
+			defer wg.Done()
+			var token *string
+			for {
+				out, err := d.client.DescribeInstances(
+					d.ctx,
+					&ec2.DescribeInstancesInput{
+						NextToken: token,
+					},
+					func(o *ec2.Options) {
+						o.Region = region
+					},
+				)
+				if err != nil {
+					ch <- Result[InstanceInfo]{Err: fmt.Errorf("%s: %w", region, err)}
+					return
+				}
+				for _, r := range out.Reservations {
+					for _, i := range r.Instances {
+						if getInstanceTagValue("Owner", i.Tags) == "" {
+							ch <- Result[InstanceInfo]{
+								Value: InstanceInfo{
+									Region:       region,
+									InstanceID:   aws.ToString(i.InstanceId),
+									InstanceName: getInstanceTagValue("Name", i.Tags),
+									State:        i.State.Name,
+								},
+							}
+						}
+					}
+				}
+				token = out.NextToken
+				if token == nil {
+					break
+				}
+			}
+		}(region)
+	}
+
+	go func() {
+		wg.Wait()
+		close(ch)
+	}()
+
+	var info []InstanceInfo
+	for result := range ch {
+		if result.Err != nil {
+			return nil, result.Err
+		}
+		info = append(info, result.Value)
+	}
+	return info, nil
+}
+
+func GetInstancesWithOpenPermission(regions []string) ([]InstanceSecurityGroupInfo, error) {
+	var wg sync.WaitGroup
+	ch := make(chan Result[InstanceSecurityGroupInfo], runtime.NumCPU())
+
+	for _, region := range regions {
+		wg.Add(1)
+		go func(region string) {
+			defer wg.Done()
+			sgmap, err := getOpenSecurityGroups(region)
+			if err != nil {
+				ch <- Result[InstanceSecurityGroupInfo]{Err: fmt.Errorf("%s: %w", region, err)}
+				return
+			}
+			if len(sgmap) == 0 {
+				return
+			}
+			var sgids []string
+			for sgid := range sgmap {
+				sgids = append(sgids, sgid)
+			}
+			var token *string
+			for {
+				out, err := d.client.DescribeInstances(
+					d.ctx,
+					&ec2.DescribeInstancesInput{
+						NextToken: token,
+						Filters: []types.Filter{
+							{
+								Name:   aws.String("instance.group-id"),
+								Values: sgids,
+							},
+						},
+					},
+					func(o *ec2.Options) {
+						o.Region = region
+					},
+				)
+				if err != nil {
+					ch <- Result[InstanceSecurityGroupInfo]{Err: fmt.Errorf("%s: %w", region, err)}
+					return
+				}
+				for _, r := range out.Reservations {
+					for _, i := range r.Instances {
+						var permissions []PermissionInfo
+						for _, sg := range i.SecurityGroups {
+							if perms, ok := sgmap[aws.ToString(sg.GroupId)]; ok {
+								permissions = append(permissions, perms...)
+							}
+						}
+						ch <- Result[InstanceSecurityGroupInfo]{
+							Value: InstanceSecurityGroupInfo{
+								Region:       region,
+								InstanceID:   aws.ToString(i.InstanceId),
+								InstanceName: getInstanceTagValue("Name", i.Tags),
+								State:        i.State.Name,
+								Permissions:  permissions,
+							},
+						}
+					}
+				}
+				token = out.NextToken
+				if token == nil {
+					break
+				}
+			}
+		}(region)
+	}
+
+	go func() {
+		wg.Wait()
+		close(ch)
+	}()
+
+	var info []InstanceSecurityGroupInfo
+	for result := range ch {
+		if result.Err != nil {
+			return nil, result.Err
+		}
+		info = append(info, result.Value)
+	}
+	return info, nil
+}
+
+func getOpenSecurityGroups(region string) (map[string][]PermissionInfo, error) {
+	m := make(map[string][]PermissionInfo, defaultMapSize)
+	var token *string
+	for {
+		openSgs, err := d.client.DescribeSecurityGroups(
+			d.ctx,
+			&ec2.DescribeSecurityGroupsInput{
+				NextToken: token,
+				Filters: []types.Filter{
+					{
+						Name:   aws.String("ip-permission.cidr"),
+						Values: []string{"0.0.0.0/0"},
+					},
+				},
+			},
+			func(o *ec2.Options) {
+				o.Region = region
+			},
+		)
+		if err != nil {
+			return nil, fmt.Errorf("%s: %w", region, err)
+		}
+		for _, sg := range openSgs.SecurityGroups {
+			var permissions []PermissionInfo
+			for _, p := range sg.IpPermissions {
+				for _, ip := range p.IpRanges {
+					if aws.ToString(ip.CidrIp) == "0.0.0.0/0" {
+						permissions = append(permissions, PermissionInfo{
+							IpProtocol: aws.ToString(p.IpProtocol),
+							FromPort:   aws.ToInt32(p.FromPort),
+							ToPort:     aws.ToInt32(p.ToPort),
+							AllowFrom:  aws.ToString(sg.GroupName),
+						})
+					}
+				}
+			}
+			m[aws.ToString(sg.GroupId)] = permissions
+		}
+		token = openSgs.NextToken
+		if token == nil {
+			break
+		}
+	}
+	return m, nil
+}
+
 func Handle(event *EventRequest) (*EventResponse, error) {
 	fmt.Println("processing by golang")
 	regions := getRegionNames(*event)
@@ -409,7 +394,7 @@ func Handle(event *EventRequest) (*EventResponse, error) {
 	case "/check-open-permission/{regions}":
 		body, err = GetInstancesWithOpenPermission(regions)
 	default:
-		return nil, fmt.Errorf("api path \"%s\" not suppported", apiPath)
+		return nil, fmt.Errorf("api path \"%s\" not supported", apiPath)
 	}
 	if err != nil {
 		return nil, err
