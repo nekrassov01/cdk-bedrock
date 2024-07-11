@@ -60,7 +60,7 @@ type CountInfo struct {
 
 func GetInstancesCount(regions []string) ([]CountInfo, error) {
 	var wg sync.WaitGroup
-	ich := make(chan CountInfo, len(d.regions))
+	ich := make(chan CountInfo, len(regions))
 	ech := make(chan error, 1)
 	for _, region := range regions {
 		region := region
@@ -82,7 +82,7 @@ func GetInstancesCount(regions []string) ([]CountInfo, error) {
 				)
 				if err != nil {
 					select {
-					case ech <- err:
+					case ech <- fmt.Errorf("%s: %w", region, err):
 					default:
 					}
 					return
@@ -90,7 +90,7 @@ func GetInstancesCount(regions []string) ([]CountInfo, error) {
 				for _, r := range out.Reservations {
 					total += len(r.Instances)
 					for _, i := range r.Instances {
-						if i.State.Name == "running" {
+						if i.State.Name == types.InstanceStateNameRunning {
 							running++
 						}
 					}
@@ -107,11 +107,14 @@ func GetInstancesCount(regions []string) ([]CountInfo, error) {
 			}
 		}()
 	}
+
 	go func() {
 		wg.Wait()
 		close(ich)
+		close(ech)
 	}()
-	info := []CountInfo{}
+
+	var info []CountInfo
 	for {
 		select {
 		case count, ok := <-ich:
@@ -154,7 +157,7 @@ func GetInstancesWithoutOwner(regions []string) ([]InstanceInfo, error) {
 				)
 				if err != nil {
 					select {
-					case ech <- err:
+					case ech <- fmt.Errorf("%s: %w", region, err):
 					default:
 					}
 					return
@@ -181,6 +184,7 @@ func GetInstancesWithoutOwner(regions []string) ([]InstanceInfo, error) {
 	go func() {
 		wg.Wait()
 		close(ich)
+		close(ech)
 	}()
 	info := []InstanceInfo{}
 	for {
@@ -223,7 +227,7 @@ func GetInstancesWithOpenPermission(regions []string) ([]InstanceSecurityGroupIn
 			sgmap, err := getOpenSecurityGroups(region)
 			if err != nil {
 				select {
-				case ech <- err:
+				case ech <- fmt.Errorf("%s: %w", region, err):
 				default:
 				}
 				return
@@ -254,7 +258,7 @@ func GetInstancesWithOpenPermission(regions []string) ([]InstanceSecurityGroupIn
 				)
 				if err != nil {
 					select {
-					case ech <- err:
+					case ech <- fmt.Errorf("%s: %w", region, err):
 					default:
 					}
 					return
@@ -286,6 +290,7 @@ func GetInstancesWithOpenPermission(regions []string) ([]InstanceSecurityGroupIn
 	go func() {
 		wg.Wait()
 		close(ich)
+		close(ech)
 	}()
 	info := []InstanceSecurityGroupInfo{}
 	for {
@@ -350,7 +355,7 @@ func getOpenSecurityGroups(region string) (map[string][]PermissionInfo, error) {
 func getInstanceTagValue(key string, tags []types.Tag) string {
 	for _, t := range tags {
 		if t.Key != nil && strings.EqualFold(aws.ToString(t.Key), key) && t.Value != nil {
-			return *t.Value
+			return aws.ToString(t.Value)
 		}
 	}
 	return ""
@@ -390,7 +395,7 @@ func getRegionNames(event EventRequest) []string {
 	return d.regions
 }
 
-func handle(event *EventRequest) (*EventResponse, error) {
+func Handle(event *EventRequest) (*EventResponse, error) {
 	fmt.Println("processing by golang")
 	regions := getRegionNames(*event)
 	apiPath := event.APIPath
@@ -434,5 +439,5 @@ func handle(event *EventRequest) (*EventResponse, error) {
 }
 
 func main() {
-	lambda.Start(handle)
+	lambda.Start(Handle)
 }
