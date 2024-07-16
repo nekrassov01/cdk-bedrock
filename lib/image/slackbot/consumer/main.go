@@ -8,7 +8,6 @@ import (
 	"os"
 	"slackbot"
 	"strings"
-	"sync"
 
 	"github.com/aws/aws-lambda-go/events"
 	"github.com/aws/aws-lambda-go/lambda"
@@ -142,50 +141,22 @@ func invokeAgent(text, timestamp string) (string, error) {
 		return "", err
 	}
 
-	cch := make(chan string) // chunk
-	ech := make(chan error)  // error
-	dch := make(chan bool)   // done
-
-	var wg sync.WaitGroup
-	var sb strings.Builder
+	var b strings.Builder
 	var n int
-
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		for event := range out.GetStream().Events() {
-			switch v := event.(type) {
-			case *types.ResponseStreamMemberChunk:
-				cch <- string(v.Value.Bytes)
-			case *types.UnknownUnionMember:
-				ech <- fmt.Errorf("unknown tag: %s", v.Tag)
-				return
-			default:
-				ech <- fmt.Errorf("union is nil or unknown type")
-				return
-			}
-		}
-		dch <- true
-	}()
-
-	go func() {
-		wg.Wait()
-		close(cch)
-		close(ech)
-		close(dch)
-	}()
-	for {
-		select {
-		case chunk := <-cch:
-			sb.WriteString(chunk)
+	for event := range out.GetStream().Events() {
+		switch v := event.(type) {
+		case *types.ResponseStreamMemberChunk:
+			b.WriteString(string(v.Value.Bytes))
 			n++
-		case err := <-ech:
-			return "", err
-		case <-dch:
-			fmt.Printf("success: invoke agent: total chunks received: %d\n", n)
-			return sb.String(), nil
+		case *types.UnknownUnionMember:
+			return "", fmt.Errorf("unknown tag: %s", v.Tag)
+		default:
+			return "", fmt.Errorf("union is nil or unknown type")
 		}
 	}
+
+	fmt.Printf("success: invoke agent: total chunks received: %d\n", n)
+	return b.String(), nil
 }
 
 func main() {
