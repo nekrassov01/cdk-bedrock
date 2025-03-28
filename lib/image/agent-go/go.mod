@@ -1,12 +1,15 @@
 module bedrock-agent-action
 
-go 1.22.4
+go 1.23.0
+
+toolchain go1.23.6
 
 require (
 	github.com/aws/aws-lambda-go v1.47.0
 	github.com/aws/aws-sdk-go-v2 v1.30.0
 	github.com/aws/aws-sdk-go-v2/config v1.27.21
 	github.com/aws/aws-sdk-go-v2/service/ec2 v1.165.1
+	golang.org/x/sync v0.12.0
 )
 
 require (
